@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { MessageSquarePlus, AlertCircle, Sparkles } from "lucide-react";
+import { MessageSquarePlus, AlertCircle, Sparkles, Github, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { KEYS, Feedback, uid } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,29 +17,49 @@ export function FeedbackDialog() {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<"bug" | "suggestion">("bug");
   const [description, setDescription] = useState("");
-  const { value: feedbacks, setValue: setFeedbacks } = useLocalStorage<Feedback[]>(
-    KEYS.feedback,
-    []
-  );
+  const [copied, setCopied] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getFormattedFeedback = () => {
+    return `### Type\n${type === "bug" ? "Bug Report" : "Suggestion"}\n\n### Description\n${description.trim()}\n\n---\n*Submitted via Focus & Earn Feedback Tool*`;
+  };
+
+  const handleCopy = async () => {
+    if (description.trim() === "") {
+      toast.error("Please provide a description");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(getFormattedFeedback());
+      setCopied(true);
+      toast.success("Feedback details copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy text. Please select and copy manually.");
+    }
+  };
+
+  const handleGithubSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (description.trim() === "") {
       toast.error("Please provide a description");
       return;
     }
 
-    const item: Feedback = {
-      id: uid(),
-      type,
-      description: description.trim(),
-      createdAt: Date.now(),
-    };
+    const trimmedDesc = description.trim();
+    const firstLine = trimmedDesc.split("\n")[0].slice(0, 50);
+    const issueTitle = `[${type.toUpperCase()}] ${firstLine}${trimmedDesc.length > 50 ? "..." : ""}`;
 
-    setFeedbacks([item, ...feedbacks]);
+    const repoUrl = "https://github.com/osaamaahmeed/time-is-money-todo/issues/new";
+    const titleParam = encodeURIComponent(issueTitle);
+    const bodyParam = encodeURIComponent(getFormattedFeedback());
+    const labelParam = type === "bug" ? "bug" : "enhancement";
+
+    const url = `${repoUrl}?title=${titleParam}&body=${bodyParam}&labels=${labelParam}`;
+    window.open(url, "_blank");
+
     setDescription("");
     setOpen(false);
-    toast.success("Thank you! Your feedback has been recorded.");
+    toast.success("Opening GitHub Issues in a new tab...");
   };
 
   return (
@@ -50,21 +68,21 @@ export function FeedbackDialog() {
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-all duration-300"
+          className="gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-all duration-300 animate-pulse-subtle"
         >
           <MessageSquarePlus className="h-4 w-4" />
           <span>Feedback</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleGithubSubmit}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquarePlus className="h-5 w-5 text-primary" />
               <span>Feedback & Bugs</span>
             </DialogTitle>
             <DialogDescription>
-              Help us improve. Submit a bug report or a feature suggestion.
+              Help us improve. Submit a bug report or a suggestion directly to our GitHub repository.
             </DialogDescription>
           </DialogHeader>
 
@@ -117,18 +135,32 @@ export function FeedbackDialog() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between">
             <Button
               type="button"
-              variant="ghost"
-              onClick={() => {
-                setDescription("");
-                setOpen(false);
-              }}
+              variant="outline"
+              onClick={handleCopy}
+              className="gap-2 self-stretch sm:self-auto"
             >
-              Cancel
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              <span>Copy Details</span>
             </Button>
-            <Button type="submit">Submit</Button>
+            <div className="flex gap-2 self-stretch sm:self-auto justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDescription("");
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="gap-2">
+                <Github className="h-4 w-4" />
+                <span>Submit on GitHub</span>
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>
