@@ -11,6 +11,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { SiteHeader } from "../components/SiteHeader";
+import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -77,14 +79,20 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Focus & Earn — Pomodoro Timer with Earnings" },
+      {
+        name: "description",
+        content:
+          "A Pomodoro timer and to-do list that tracks both your focused time and how much money you've earned per session.",
+      },
+      { property: "og:title", content: "Focus & Earn — Pomodoro Timer with Earnings" },
+      {
+        property: "og:description",
+        content:
+          "Track focused time and money earned per task with a configurable Pomodoro timer.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
@@ -119,8 +127,14 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div className="min-h-screen bg-background text-foreground">
+        <SiteHeader />
+        <main className="mx-auto max-w-5xl px-4 py-8">
+          {/* Required: nested routes render here. */}
+          <Outlet />
+        </main>
+      </div>
+      <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );
 }
