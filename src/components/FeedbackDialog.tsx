@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquarePlus, AlertCircle, Sparkles, Github, Copy, Check } from "lucide-react";
+import { MessageSquarePlus, AlertCircle, Sparkles, Github, Copy, Check, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,9 @@ export function FeedbackDialog() {
   const [type, setType] = useState<"bug" | "suggestion">("bug");
   const [description, setDescription] = useState("");
   const [copied, setCopied] = useState(false);
+
+  // Customize this with your preferred contact email
+  const developerEmail = "osaamaahmeed@gmail.com";
 
   const getFormattedFeedback = () => {
     return `### Type\n${type === "bug" ? "Bug Report" : "Suggestion"}\n\n### Description\n${description.trim()}\n\n---\n*Submitted via Focus & Earn Feedback Tool*`;
@@ -38,8 +41,7 @@ export function FeedbackDialog() {
     }
   };
 
-  const handleGithubSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAction = (method: "github" | "email") => {
     if (description.trim() === "") {
       toast.error("Please provide a description");
       return;
@@ -49,17 +51,26 @@ export function FeedbackDialog() {
     const firstLine = trimmedDesc.split("\n")[0].slice(0, 50);
     const issueTitle = `[${type.toUpperCase()}] ${firstLine}${trimmedDesc.length > 50 ? "..." : ""}`;
 
-    const repoUrl = "https://github.com/osaamaahmeed/time-is-money-todo/issues/new";
-    const titleParam = encodeURIComponent(issueTitle);
-    const bodyParam = encodeURIComponent(getFormattedFeedback());
-    const labelParam = type === "bug" ? "bug" : "enhancement";
+    if (method === "github") {
+      const repoUrl = "https://github.com/osaamaahmeed/time-is-money-todo/issues/new";
+      const titleParam = encodeURIComponent(issueTitle);
+      const bodyParam = encodeURIComponent(getFormattedFeedback());
+      const labelParam = type === "bug" ? "bug" : "enhancement";
 
-    const url = `${repoUrl}?title=${titleParam}&body=${bodyParam}&labels=${labelParam}`;
-    window.open(url, "_blank");
+      const url = `${repoUrl}?title=${titleParam}&body=${bodyParam}&labels=${labelParam}`;
+      window.open(url, "_blank");
+      toast.success("Opening GitHub Issues in a new tab...");
+    } else {
+      const subjectParam = encodeURIComponent(issueTitle);
+      const bodyParam = encodeURIComponent(getFormattedFeedback());
+      
+      const url = `mailto:${developerEmail}?subject=${subjectParam}&body=${bodyParam}`;
+      window.open(url, "_blank");
+      toast.success("Opening your mail app...");
+    }
 
     setDescription("");
     setOpen(false);
-    toast.success("Opening GitHub Issues in a new tab...");
   };
 
   return (
@@ -67,22 +78,22 @@ export function FeedbackDialog() {
       <DialogTrigger asChild>
         <Button
           variant="outline"
-          size="sm"
-          className="gap-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-all duration-300 animate-pulse-subtle"
+          size="icon"
+          className="fixed bottom-6 right-6 z-50 h-12 w-12 sm:h-14 sm:w-14 rounded-full shadow-2xl border-primary/20 bg-primary text-primary-foreground hover:bg-primary/95 transition-all duration-300 hover:scale-110 flex items-center justify-center hover:shadow-primary/20"
         >
-          <MessageSquarePlus className="h-4 w-4" />
-          <span>Feedback</span>
+          <MessageSquarePlus className="h-6 w-6 sm:h-7 sm:w-7" />
+          <span className="sr-only">Feedback</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleGithubSubmit}>
+      <DialogContent className="w-[calc(100%-2rem)] max-w-[425px] rounded-xl mx-auto">
+        <div>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MessageSquarePlus className="h-5 w-5 text-primary" />
               <span>Feedback & Bugs</span>
             </DialogTitle>
             <DialogDescription>
-              Help us improve. Submit a bug report or a suggestion directly to our GitHub repository.
+              Help us improve. Submit a bug report or a suggestion using one of the channels below.
             </DialogDescription>
           </DialogHeader>
 
@@ -135,34 +146,37 @@ export function FeedbackDialog() {
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between">
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between pt-2 border-t border-border">
             <Button
               type="button"
               variant="outline"
               onClick={handleCopy}
-              className="gap-2 self-stretch sm:self-auto"
+              className="gap-2 w-full sm:w-auto"
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               <span>Copy Details</span>
             </Button>
-            <div className="flex gap-2 self-stretch sm:self-auto justify-end">
-              <Button
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:justify-end">
+              <Button 
                 type="button"
-                variant="ghost"
-                onClick={() => {
-                  setDescription("");
-                  setOpen(false);
-                }}
+                variant="outline"
+                onClick={() => handleAction("email")}
+                className="gap-2 w-full sm:w-auto"
               >
-                Cancel
+                <Mail className="h-4 w-4" />
+                <span>Email Us</span>
               </Button>
-              <Button type="submit" className="gap-2">
+              <Button 
+                type="button"
+                onClick={() => handleAction("github")} 
+                className="gap-2 w-full sm:w-auto bg-foreground text-background hover:bg-foreground/90"
+              >
                 <Github className="h-4 w-4" />
                 <span>Submit on GitHub</span>
               </Button>
             </div>
           </DialogFooter>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

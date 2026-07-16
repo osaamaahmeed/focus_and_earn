@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { Timer } from "lucide-react";
-import { FeedbackDialog } from "./FeedbackDialog";
 
 export function SiteHeader() {
   const linkClass =
@@ -25,7 +24,6 @@ export function SiteHeader() {
               Settings
             </Link>
           </nav>
-          <FeedbackDialog />
         </div>
       </div>
     </header>
