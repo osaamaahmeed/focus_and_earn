@@ -89,10 +89,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         property: "og:description",
         content:
-          "Track focused time and money earned per task with a configurable Pomodoro timer.",
+          "A Pomodoro timer and to-do list that tracks both your focused time and how much money you've earned per session.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Focus & Earn — Pomodoro Timer with Earnings" },
+      { name: "twitter:description", content: "A Pomodoro timer and to-do list that tracks both your focused time and how much money you've earned per session." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png" },
     ],
     links: [
       {
