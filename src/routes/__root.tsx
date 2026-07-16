@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader } from "../components/SiteHeader";
 import { Toaster } from "../components/ui/sonner";
+import { useLocalStorage } from "../hooks/use-local-storage";
+import { KEYS, DEFAULT_SETTINGS, Settings } from "../lib/store";
 
 function NotFoundComponent() {
   return (
@@ -94,16 +96,28 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Focus & Earn — Pomodoro Timer with Earnings" },
-      { name: "twitter:description", content: "A Pomodoro timer and to-do list that tracks both your focused time and how much money you've earned per session." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png" },
+      {
+        name: "twitter:description",
+        content:
+          "A Pomodoro timer and to-do list that tracks both your focused time and how much money you've earned per session.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e2b6b63f-dac2-4e9f-830d-05d81366db4c/id-preview-168c038f--376eb0cd-c0d1-47b5-8f13-363e7868759f.lovable.app-1784232524475.png",
+      },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "./logo.png", type: "image/png" },
     ],
   }),
   shellComponent: RootShell,
@@ -128,12 +142,32 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const { value: settings, hydrated } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const htmlEl = document.documentElement;
+
+    // Apply theme class
+    if (settings.theme === "dark") {
+      htmlEl.classList.add("dark");
+    } else {
+      htmlEl.classList.remove("dark");
+    }
+
+    // Apply language and text direction
+    htmlEl.lang = settings.lang || "en";
+    htmlEl.dir = "ltr"; // Keep scrollbars static on the right to prevent page resizing shift
+  }, [settings.theme, settings.lang, hydrated]);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground" dir="ltr">
         <SiteHeader />
-        <main className="mx-auto max-w-5xl px-4 py-8">
+        <main
+          className="mx-auto max-w-5xl px-4 py-8"
+          dir={hydrated && settings.lang === "ar" ? "rtl" : "ltr"}
+        >
           {/* Required: nested routes render here. */}
           <Outlet />
         </main>

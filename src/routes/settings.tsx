@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { DEFAULT_SETTINGS, KEYS, Settings } from "@/lib/store";
+import { useTranslation } from "@/lib/translations";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -19,9 +20,13 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
-  const { value, setValue, hydrated, reset } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+  const { t } = useTranslation();
+  const { value, setValue, hydrated, reset } = useLocalStorage<Settings>(
+    KEYS.settings,
+    DEFAULT_SETTINGS,
+  );
 
-  if (!hydrated) return <div className="text-muted-foreground text-sm">Loading…</div>;
+  if (!hydrated) return <div className="text-muted-foreground text-sm">{t("loading")}</div>;
 
   const update = <K extends keyof Settings>(key: K, v: Settings[K]) =>
     setValue({ ...value, [key]: v });
@@ -33,13 +38,71 @@ function SettingsPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      {/* Preferences Card (Theme & Language) */}
       <Card>
         <CardHeader>
-          <CardTitle>Money</CardTitle>
+          <CardTitle>{t("settings")}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="font-medium text-sm sm:text-base">{t("theme")}</div>
+              <div className="text-xs text-muted-foreground">{t("themeDesc")}</div>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+              <Button
+                variant={value.theme === "light" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 sm:flex-none px-4"
+                onClick={() => update("theme", "light")}
+              >
+                {t("light")}
+              </Button>
+              <Button
+                variant={value.theme === "dark" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 sm:flex-none px-4"
+                onClick={() => update("theme", "dark")}
+              >
+                {t("dark")}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-border">
+            <div>
+              <div className="font-medium text-sm sm:text-base">{t("language")}</div>
+              <div className="text-xs text-muted-foreground">{t("languageDesc")}</div>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+              <Button
+                variant={value.lang === "en" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 sm:flex-none px-4"
+                onClick={() => update("lang", "en")}
+              >
+                {t("english")}
+              </Button>
+              <Button
+                variant={value.lang === "ar" ? "default" : "outline"}
+                size="sm"
+                className="flex-1 sm:flex-none px-4"
+                onClick={() => update("lang", "ar")}
+              >
+                {t("arabic")}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("money")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="rate">Default hourly rate</Label>
+            <Label htmlFor="rate">{t("defaultHourlyRate")}</Label>
             <Input
               id="rate"
               type="number"
@@ -50,7 +113,7 @@ function SettingsPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="currency">Currency symbol</Label>
+            <Label htmlFor="currency">{t("currencySymbol")}</Label>
             <Input
               id="currency"
               value={value.currency}
@@ -63,14 +126,29 @@ function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Timer durations (minutes)</CardTitle>
+          <CardTitle>{t("timerDurations")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Field label="Focus" id="focus" value={value.focusMin} onChange={(v) => update("focusMin", v)} />
-          <Field label="Short break" id="short" value={value.shortBreakMin} onChange={(v) => update("shortBreakMin", v)} />
-          <Field label="Long break" id="long" value={value.longBreakMin} onChange={(v) => update("longBreakMin", v)} />
           <Field
-            label="Long break every N pomodoros"
+            label={t("focus")}
+            id="focus"
+            value={value.focusMin}
+            onChange={(v) => update("focusMin", v)}
+          />
+          <Field
+            label={t("shortBreak")}
+            id="short"
+            value={value.shortBreakMin}
+            onChange={(v) => update("shortBreakMin", v)}
+          />
+          <Field
+            label={t("longBreak")}
+            id="long"
+            value={value.longBreakMin}
+            onChange={(v) => update("longBreakMin", v)}
+          />
+          <Field
+            label={t("longBreakEvery")}
             id="every"
             value={value.longBreakEvery}
             onChange={(v) => update("longBreakEvery", Math.max(1, v))}
@@ -80,43 +158,14 @@ function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Notifications</CardTitle>
+          <CardTitle>{t("notifications")}</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div>
-            <div className="font-medium">Sound on completion</div>
-            <div className="text-sm text-muted-foreground">Play a chime when a session ends.</div>
+            <div className="font-medium text-sm sm:text-base">{t("soundOnCompletion")}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">{t("playChime")}</div>
           </div>
           <Switch checked={value.soundOn} onCheckedChange={(v) => update("soundOn", v)} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Feedback & Bug Reports</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="web3FormsKey">Web3Forms Access Key</Label>
-            <Input
-              id="web3FormsKey"
-              placeholder="e.g. 12345678-abcd-1234-abcd-1234567890ab"
-              value={value.web3FormsKey || ""}
-              onChange={(e) => update("web3FormsKey", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              To receive user feedback directly in your email inbox behind the scenes, get a free Access Key from{" "}
-              <a
-                href="https://web3forms.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary hover:underline font-medium"
-              >
-                web3forms.com
-              </a>{" "}
-              (takes 10 seconds, no password or sign-up required).
-            </p>
-          </div>
         </CardContent>
       </Card>
 
@@ -125,10 +174,10 @@ function SettingsPage() {
           variant="ghost"
           onClick={() => {
             reset();
-            toast.success("Settings reset to defaults");
+            toast.success(t("settingsReset"));
           }}
         >
-          Reset to defaults
+          {t("resetDefaults")}
         </Button>
       </div>
     </div>

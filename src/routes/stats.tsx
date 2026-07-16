@@ -20,6 +20,7 @@ import {
   formatDuration,
   formatMoney,
 } from "@/lib/store";
+import { useTranslation } from "@/lib/translations";
 
 export const Route = createFileRoute("/stats")({
   head: () => ({
@@ -32,11 +33,16 @@ export const Route = createFileRoute("/stats")({
 });
 
 function StatsPage() {
-  const { value: settings, hydrated: sHy } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
-  const { value: sessions, setValue: setSessions, hydrated: seHy } = useLocalStorage<Session[]>(
-    KEYS.sessions,
-    [],
+  const { t } = useTranslation();
+  const { value: settings, hydrated: sHy } = useLocalStorage<Settings>(
+    KEYS.settings,
+    DEFAULT_SETTINGS,
   );
+  const {
+    value: sessions,
+    setValue: setSessions,
+    hydrated: seHy,
+  } = useLocalStorage<Session[]>(KEYS.sessions, []);
   const { value: tasks, hydrated: tHy } = useLocalStorage<Task[]>(KEYS.tasks, []);
 
   const totals = useMemo(() => {
@@ -45,9 +51,9 @@ function StatsPage() {
     startOfDay.setHours(0, 0, 0, 0);
     const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
 
-    let today = { sec: 0, money: 0 };
-    let week = { sec: 0, money: 0 };
-    let all = { sec: 0, money: 0 };
+    const today = { sec: 0, money: 0 };
+    const week = { sec: 0, money: 0 };
+    const all = { sec: 0, money: 0 };
     for (const s of sessions) {
       all.sec += s.durationSec;
       all.money += s.earned;
@@ -64,9 +70,7 @@ function StatsPage() {
   }, [sessions]);
 
   const perTask = useMemo(() => {
-    return [...tasks]
-      .map((t) => ({ ...t }))
-      .sort((a, b) => b.totalEarned - a.totalEarned);
+    return [...tasks].map((t) => ({ ...t })).sort((a, b) => b.totalEarned - a.totalEarned);
   }, [tasks]);
 
   const exportData = () => {
@@ -86,46 +90,64 @@ function StatsPage() {
   };
 
   const clearSessions = () => {
-    if (window.confirm("Clear all session history? This cannot be undone.")) {
+    if (window.confirm(t("clearSessionsConfirm"))) {
       setSessions([]);
     }
   };
 
-  if (!sHy || !seHy || !tHy) return <div className="text-muted-foreground text-sm">Loading…</div>;
+  if (!sHy || !seHy || !tHy)
+    return <div className="text-muted-foreground text-sm">{t("loading")}</div>;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Today" sec={totals.today.sec} money={totals.today.money} currency={settings.currency} />
-        <StatCard label="Last 7 days" sec={totals.week.sec} money={totals.week.money} currency={settings.currency} />
-        <StatCard label="All time" sec={totals.all.sec} money={totals.all.money} currency={settings.currency} />
+        <StatCard
+          label={t("today")}
+          sec={totals.today.sec}
+          money={totals.today.money}
+          currency={settings.currency}
+        />
+        <StatCard
+          label={t("last7Days")}
+          sec={totals.week.sec}
+          money={totals.week.money}
+          currency={settings.currency}
+        />
+        <StatCard
+          label={t("allTime")}
+          sec={totals.all.sec}
+          money={totals.all.money}
+          currency={settings.currency}
+        />
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>By task</CardTitle>
+          <CardTitle>{t("byTask")}</CardTitle>
         </CardHeader>
         <CardContent>
           {perTask.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No tasks yet.</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">{t("noTasks")}</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Task</TableHead>
-                  <TableHead className="text-right">Pomodoros</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                  <TableHead className="text-right">Earned</TableHead>
+                  <TableHead className="text-start">{t("task")}</TableHead>
+                  <TableHead className="text-end">{t("pomodorosFinished")}</TableHead>
+                  <TableHead className="text-end">{t("timeLabel")}</TableHead>
+                  <TableHead className="text-end">{t("earned")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {perTask.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell className="font-medium">{t.title}</TableCell>
-                    <TableCell className="text-right tabular-nums">{t.pomodoros}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatDuration(t.totalSec)}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMoney(t.totalEarned, settings.currency)}
+                    <TableCell className="font-medium text-start">{t.title}</TableCell>
+                    <TableCell className="text-end tabular-nums">{t.pomodoros}</TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatDuration(t.totalSec, settings.lang)}
+                    </TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatMoney(t.totalEarned, settings.currency, settings.lang)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -137,41 +159,51 @@ function StatsPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent sessions</CardTitle>
+          <CardTitle>{t("recentSessions")}</CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={exportData}>Export JSON</Button>
-            <Button variant="ghost" size="sm" onClick={clearSessions}>Clear history</Button>
+            <Button variant="outline" size="sm" onClick={exportData}>
+              {t("exportJson")}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={clearSessions}>
+              {t("clearHistory")}
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
           {sessions.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              No sessions yet. Finish a pomodoro to see it here.
+              {t("noSessionsYet")}
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>When</TableHead>
-                  <TableHead>Task</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                  <TableHead className="text-right">Rate</TableHead>
-                  <TableHead className="text-right">Earned</TableHead>
+                  <TableHead className="text-start">{t("when")}</TableHead>
+                  <TableHead className="text-start">{t("task")}</TableHead>
+                  <TableHead className="text-end">{t("timeLabel")}</TableHead>
+                  <TableHead className="text-end">{t("rate")}</TableHead>
+                  <TableHead className="text-end">{t("earned")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sessions.slice(0, 30).map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(s.endedAt).toLocaleString()}
+                    <TableCell className="text-muted-foreground text-start">
+                      {new Date(s.endedAt).toLocaleString(
+                        settings.lang === "ar" ? "ar-EG" : "en-US",
+                      )}
                     </TableCell>
-                    <TableCell>{s.taskTitle}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatDuration(s.durationSec)}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMoney(s.rate, settings.currency)}/hr
+                    <TableCell className="text-start">{s.taskTitle}</TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatDuration(s.durationSec, settings.lang)}
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {formatMoney(s.earned, settings.currency)}
+                    <TableCell className="text-end tabular-nums">
+                      {settings.lang === "ar"
+                        ? `${formatMoney(s.rate, settings.currency, settings.lang)}/ساعة`
+                        : `${formatMoney(s.rate, settings.currency, settings.lang)}/hr`}
+                    </TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatMoney(s.earned, settings.currency, settings.lang)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -195,14 +227,17 @@ function StatCard({
   money: number;
   currency: string;
 }) {
+  const { t, lang } = useTranslation();
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold tabular-nums">{formatMoney(money, currency)}</div>
-        <div className="text-sm text-muted-foreground mt-1">{formatDuration(sec)} focused</div>
+        <div className="text-3xl font-bold tabular-nums">{formatMoney(money, currency, lang)}</div>
+        <div className="text-sm text-muted-foreground mt-1">
+          {formatDuration(sec, lang)} {t("focusedLabel")}
+        </div>
       </CardContent>
     </Card>
   );

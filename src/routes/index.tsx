@@ -19,6 +19,7 @@ import {
   formatMoney,
   uid,
 } from "@/lib/store";
+import { useTranslation, TranslationKey } from "@/lib/translations";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -26,13 +27,21 @@ export const Route = createFileRoute("/")({
 
 type Phase = "focus" | "short" | "long";
 
-function phaseLabel(p: Phase) {
-  return p === "focus" ? "Focus" : p === "short" ? "Short Break" : "Long Break";
+function phaseLabel(p: Phase, t: (k: TranslationKey) => string) {
+  return p === "focus" ? t("focus") : p === "short" ? t("shortBreak") : t("longBreak");
 }
 
 function HomePage() {
-  const { value: settings, hydrated: sHy } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
-  const { value: tasks, setValue: setTasks, hydrated: tHy } = useLocalStorage<Task[]>(KEYS.tasks, []);
+  const { t } = useTranslation();
+  const { value: settings, hydrated: sHy } = useLocalStorage<Settings>(
+    KEYS.settings,
+    DEFAULT_SETTINGS,
+  );
+  const {
+    value: tasks,
+    setValue: setTasks,
+    hydrated: tHy,
+  } = useLocalStorage<Task[]>(KEYS.tasks, []);
   const { value: sessions, setValue: setSessions } = useLocalStorage<Session[]>(KEYS.sessions, []);
   const { value: activeTaskId, setValue: setActiveTaskId } = useLocalStorage<string | null>(
     KEYS.activeTaskId,
@@ -49,7 +58,11 @@ function HomePage() {
 
   const phaseTotalSec = useMemo(() => {
     const min =
-      phase === "focus" ? settings.focusMin : phase === "short" ? settings.shortBreakMin : settings.longBreakMin;
+      phase === "focus"
+        ? settings.focusMin
+        : phase === "short"
+          ? settings.shortBreakMin
+          : settings.longBreakMin;
     return Math.max(1, Math.round(min * 60));
   }, [phase, settings]);
 
@@ -96,7 +109,7 @@ function HomePage() {
         const session: Session = {
           id: uid(),
           taskId: activeTask?.id ?? null,
-          taskTitle: activeTask?.title ?? "No task",
+          taskTitle: activeTask?.title ?? t("noTask"),
           startedAt: Date.now() - duration * 1000,
           endedAt: Date.now(),
           durationSec: duration,
@@ -119,11 +132,15 @@ function HomePage() {
           );
         }
         toast.success(
-          `Pomodoro complete! ${formatDuration(duration)} • ${formatMoney(earned, settings.currency)}`,
-          { description: activeTask ? `Credited to "${activeTask.title}"` : "No task selected" },
+          `${t("toastPomodoroComplete")} ${formatDuration(duration, settings.lang)} • ${formatMoney(earned, settings.currency, settings.lang)}`,
+          {
+            description: activeTask
+              ? t("toastCreditedTo", { title: activeTask.title })
+              : t("toastNoTaskSelected"),
+          },
         );
       } else {
-        toast.success("Pomodoro complete!");
+        toast.success(t("toastPomodoroComplete"));
       }
 
       if (settings.soundOn) beep();
@@ -131,7 +148,11 @@ function HomePage() {
       setCompletedFocusCount(next);
       setPhase(next % settings.longBreakEvery === 0 ? "long" : "short");
     } else {
-      toast.info(`${phaseLabel(phase)} finished. Back to focus.`);
+      toast.info(
+        `${phaseLabel(phase, t)} ${
+          settings.lang === "ar" ? "انتهت. العودة للتركيز." : "finished. Back to focus."
+        }`,
+      );
       if (settings.soundOn) beep();
       setPhase("focus");
     }
@@ -149,6 +170,7 @@ function HomePage() {
     loggedSecInCurrentPomo,
     setSessions,
     setTasks,
+    t,
   ]);
 
   useEffect(() => {
@@ -184,7 +206,7 @@ function HomePage() {
         const session: Session = {
           id: uid(),
           taskId: activeTask?.id ?? null,
-          taskTitle: activeTask?.title ?? "No task",
+          taskTitle: activeTask?.title ?? t("noTask"),
           startedAt: Date.now() - segmentDuration * 1000,
           endedAt: Date.now(),
           durationSec: segmentDuration,
@@ -209,7 +231,10 @@ function HomePage() {
         }
         setLoggedSecInCurrentPomo((prev) => prev + segmentDuration);
         toast.info(
-          `Logged ${formatDuration(segmentDuration)} to "${activeTask?.title ?? "No task"}"`,
+          t("toastLoggedDuration", {
+            duration: formatDuration(segmentDuration, settings.lang),
+            title: activeTask?.title ?? t("noTask"),
+          }),
         );
       }
     }
@@ -279,10 +304,15 @@ function HomePage() {
               : t,
           ),
         );
-        
+
         setLoggedSecInCurrentPomo((prev) => prev + segmentDuration);
         setActiveTaskId(nextTask ? nextTask.id : null);
-        toast.success(`Completed "${taskToToggle.title}"! Logged ${formatDuration(segmentDuration)}.`);
+        toast.success(
+          t("toastCompletedTask", {
+            title: taskToToggle.title,
+            duration: formatDuration(segmentDuration, settings.lang),
+          }),
+        );
       } else {
         const nextTask = tasks.find((t) => t.id !== id && !t.done);
         setTasks((prevTasks) => prevTasks.map((t) => (t.id === id ? { ...t, done: true } : t)));
@@ -310,11 +340,15 @@ function HomePage() {
   };
 
   const progress = (elapsedSec / phaseTotalSec) * 100;
-  const mm = Math.floor(remainingSec / 60).toString().padStart(2, "0");
-  const ss = Math.floor(remainingSec % 60).toString().padStart(2, "0");
+  const mm = Math.floor(remainingSec / 60)
+    .toString()
+    .padStart(2, "0");
+  const ss = Math.floor(remainingSec % 60)
+    .toString()
+    .padStart(2, "0");
 
   if (!sHy || !tHy) {
-    return <div className="text-muted-foreground text-sm">Loading…</div>;
+    return <div className="text-muted-foreground text-sm">{t("loading")}</div>;
   }
 
   return (
@@ -323,7 +357,7 @@ function HomePage() {
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-medium text-muted-foreground">
-              {phaseLabel(phase)}
+              {phaseLabel(phase, t)}
             </CardTitle>
             <div className="flex gap-2">
               {(["focus", "short", "long"] as Phase[]).map((p) => (
@@ -336,7 +370,7 @@ function HomePage() {
                     setPhase(p);
                   }}
                 >
-                  {phaseLabel(p)}
+                  {phaseLabel(p, t)}
                 </Button>
               ))}
             </div>
@@ -354,17 +388,21 @@ function HomePage() {
 
           <div className="grid grid-cols-2 gap-4 text-center">
             <div className="rounded-md border border-border p-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Elapsed</div>
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t("elapsed")}
+              </div>
               <div className="mt-1 text-xl font-semibold tabular-nums">
-                {formatDuration(Math.floor(elapsedSec))}
+                {formatDuration(Math.floor(elapsedSec), settings.lang)}
               </div>
             </div>
             <div className="rounded-md border border-border p-3">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                Earning ({formatMoney(activeRate, settings.currency)}/hr)
+                {t("earningRate", {
+                  rate: formatMoney(activeRate, settings.currency, settings.lang),
+                })}
               </div>
               <div className="mt-1 text-xl font-semibold tabular-nums">
-                {formatMoney(liveEarned, settings.currency)}
+                {formatMoney(liveEarned, settings.currency, settings.lang)}
               </div>
             </div>
           </div>
@@ -372,66 +410,64 @@ function HomePage() {
           <div className="flex flex-wrap justify-center gap-2">
             {!running ? (
               <Button size="lg" onClick={start}>
-                <Play className="mr-2 h-4 w-4" /> Start
+                <Play className="mx-2 h-4 w-4" /> {t("start")}
               </Button>
             ) : (
               <Button size="lg" variant="secondary" onClick={pause}>
-                <Pause className="mr-2 h-4 w-4" /> Pause
+                <Pause className="mx-2 h-4 w-4" /> {t("pause")}
               </Button>
             )}
             <Button size="lg" variant="outline" onClick={reset}>
-              <RotateCcw className="mr-2 h-4 w-4" /> Reset
+              <RotateCcw className="mx-2 h-4 w-4" /> {t("reset")}
             </Button>
             <Button size="lg" variant="ghost" onClick={skip}>
-              <SkipForward className="mr-2 h-4 w-4" /> Skip
+              <SkipForward className="mx-2 h-4 w-4" /> {t("skip")}
             </Button>
           </div>
 
           <div className="text-center text-sm text-muted-foreground">
-            {activeTask ? (
-              <>Working on: <span className="text-foreground font-medium">{activeTask.title}</span></>
-            ) : (
-              <>Select a task below to credit your pomodoros.</>
-            )}
+            {activeTask ? t("workingOn", { title: activeTask.title }) : t("selectTaskPrompt")}
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>To-do</CardTitle>
+          <CardTitle>{t("todo")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <Input
-              placeholder="What are you working on?"
+              placeholder={t("taskPlaceholder")}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addTask()}
-              className="flex-1"
+              className="flex-1 text-start"
             />
-            <div className="relative sm:w-40">
-              <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <div className="relative sm:w-52">
+              <DollarSign
+                className={`absolute ${
+                  settings.lang === "ar" ? "right-2" : "left-2"
+                } top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`}
+              />
               <Input
                 type="number"
                 min="0"
                 step="0.01"
-                placeholder={`Rate (default ${settings.defaultHourlyRate})`}
+                placeholder={t("rateDefault", { rate: settings.defaultHourlyRate })}
                 value={newRate}
                 onChange={(e) => setNewRate(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addTask()}
-                className="pl-7"
+                className={`${settings.lang === "ar" ? "pr-7" : "pl-7"} no-spinner text-start`}
               />
             </div>
             <Button onClick={addTask}>
-              <Plus className="mr-2 h-4 w-4" /> Add
+              <Plus className="mx-2 h-4 w-4" /> {t("add")}
             </Button>
           </div>
 
           {tasks.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              No tasks yet. Add one to start tracking.
-            </div>
+            <div className="py-8 text-center text-sm text-muted-foreground">{t("noTasks")}</div>
           ) : (
             <ul className="space-y-2">
               {tasks.map((t) => {
@@ -456,17 +492,26 @@ function HomePage() {
                     <button
                       type="button"
                       onClick={() => handleSwitchTask(t.id)}
-                      className={`flex-1 text-left truncate ${t.done ? "line-through text-muted-foreground" : ""}`}
+                      className={`flex-1 text-start truncate ${
+                        t.done ? "line-through text-muted-foreground" : ""
+                      }`}
                     >
-                      <div className="truncate">{t.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {t.pomodoros} pomodoros • {formatDuration(t.totalSec)} •{" "}
-                        {formatMoney(t.totalEarned, settings.currency)}
+                      <div className="truncate text-start">{t.title}</div>
+                      <div className="text-xs text-muted-foreground text-start">
+                        {t.pomodoros} {settings.lang === "ar" ? "جلسات" : "pomodoros"} •{" "}
+                        {formatDuration(t.totalSec, settings.lang)} •{" "}
+                        {formatMoney(t.totalEarned, settings.currency, settings.lang)}
                       </div>
                     </button>
-                    {isActive && <Badge variant="secondary">Active</Badge>}
+                    {isActive && (
+                      <Badge variant="secondary">{settings.lang === "ar" ? "نشط" : "Active"}</Badge>
+                    )}
                     <div className="relative w-28">
-                      <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <DollarSign
+                        className={`absolute ${
+                          settings.lang === "ar" ? "right-2" : "left-2"
+                        } top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground`}
+                      />
                       <Input
                         type="number"
                         min="0"
@@ -474,8 +519,14 @@ function HomePage() {
                         value={t.hourlyRate ?? ""}
                         placeholder={String(settings.defaultHourlyRate)}
                         onChange={(e) => updateRate(t.id, e.target.value)}
-                        className="pl-6 h-8 text-sm"
-                        title={`Effective rate: ${formatMoney(rate, settings.currency)}/hr`}
+                        className={`${
+                          settings.lang === "ar" ? "pr-6" : "pl-6"
+                        } h-8 text-sm no-spinner text-start`}
+                        title={
+                          settings.lang === "ar"
+                            ? `السعر الفعلي: ${formatMoney(rate, settings.currency, settings.lang)}/ساعة`
+                            : `Effective rate: ${formatMoney(rate, settings.currency, settings.lang)}/hr`
+                        }
                       />
                     </div>
                     <Button
@@ -501,8 +552,12 @@ function HomePage() {
 function beep() {
   try {
     const AC =
-      (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext })
-        .AudioContext ||
+      (
+        window as unknown as {
+          AudioContext?: typeof AudioContext;
+          webkitAudioContext?: typeof AudioContext;
+        }
+      ).AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     const ctx = new AC();
