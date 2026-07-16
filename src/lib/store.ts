@@ -28,6 +28,7 @@ export type Settings = {
   defaultHourlyRate: number;
   currency: string;
   soundOn: boolean;
+  web3FormsKey?: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultHourlyRate: 50,
   currency: "$",
   soundOn: true,
+  web3FormsKey: "",
 };
 
 export type Feedback = {

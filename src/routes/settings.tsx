@@ -91,6 +91,35 @@ function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Feedback & Bug Reports</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="web3FormsKey">Web3Forms Access Key</Label>
+            <Input
+              id="web3FormsKey"
+              placeholder="e.g. 12345678-abcd-1234-abcd-1234567890ab"
+              value={value.web3FormsKey || ""}
+              onChange={(e) => update("web3FormsKey", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              To receive user feedback directly in your email inbox behind the scenes, get a free Access Key from{" "}
+              <a
+                href="https://web3forms.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                web3forms.com
+              </a>{" "}
+              (takes 10 seconds, no password or sign-up required).
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end gap-2">
         <Button
           variant="ghost"
