@@ -40,11 +40,19 @@ export const DEFAULT_SETTINGS: Settings = {
   soundOn: true,
 };
 
+export type Feedback = {
+  id: string;
+  type: "bug" | "suggestion";
+  description: string;
+  createdAt: number;
+};
+
 export const KEYS = {
   tasks: "pomo.tasks",
   sessions: "pomo.sessions",
   settings: "pomo.settings",
   activeTaskId: "pomo.activeTaskId",
+  feedback: "pomo.feedback",
 };
 
 export function uid() {

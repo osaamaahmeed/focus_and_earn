@@ -1,12 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { DEFAULT_SETTINGS, KEYS, Settings } from "@/lib/store";
+import { DEFAULT_SETTINGS, KEYS, Settings, Feedback } from "@/lib/store";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -20,6 +22,7 @@ export const Route = createFileRoute("/settings")({
 
 function SettingsPage() {
   const { value, setValue, hydrated, reset } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+  const { value: feedbacks, setValue: setFeedbacks } = useLocalStorage<Feedback[]>(KEYS.feedback, []);
 
   if (!hydrated) return <div className="text-muted-foreground text-sm">Loading…</div>;
 
@@ -88,6 +91,82 @@ function SettingsPage() {
             <div className="text-sm text-muted-foreground">Play a chime when a session ends.</div>
           </div>
           <Switch checked={value.soundOn} onCheckedChange={(v) => update("soundOn", v)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle>Bugs & Suggestions Log</CardTitle>
+          {feedbacks.length > 0 && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(feedbacks, null, 2));
+                  const downloadAnchor = document.createElement("a");
+                  downloadAnchor.setAttribute("href", dataStr);
+                  downloadAnchor.setAttribute("download", `feedback-export-${Date.now()}.json`);
+                  document.body.appendChild(downloadAnchor);
+                  downloadAnchor.click();
+                  downloadAnchor.remove();
+                  toast.success("Feedback logs exported successfully");
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm("Are you sure you want to clear all feedback logs?")) {
+                    setFeedbacks([]);
+                    toast.success("Feedback logs cleared");
+                  }
+                }}
+              >
+                Clear All
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {feedbacks.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground text-sm">
+              No feedback items logged yet. Use the "Feedback" button in the header to submit bugs or suggestions.
+            </div>
+          ) : (
+            <div className="divide-y divide-border border rounded-lg max-h-[300px] overflow-y-auto">
+              {feedbacks.map((f) => (
+                <div key={f.id} className="p-4 flex gap-4 items-start justify-between hover:bg-muted/30 transition-colors">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant={f.type === "bug" ? "destructive" : "default"}>
+                        {f.type === "bug" ? "Bug" : "Suggestion"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(f.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm font-normal text-foreground whitespace-pre-wrap mt-2">{f.description}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => {
+                      setFeedbacks(feedbacks.filter((item) => item.id !== f.id));
+                      toast.success("Feedback item deleted");
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

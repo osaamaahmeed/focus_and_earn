@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Timer } from "lucide-react";
+import { FeedbackDialog } from "./FeedbackDialog";
 
 export function SiteHeader() {
   const linkClass =
@@ -12,17 +13,20 @@ export function SiteHeader() {
           <Timer className="h-5 w-5 text-primary" />
           <span>Focus & Earn</span>
         </Link>
-        <nav className="flex items-center gap-1">
-          <Link to="/" className={linkClass} activeOptions={{ exact: true }} activeProps={{ className: `${linkClass} ${activeClass}` }}>
-            Timer
-          </Link>
-          <Link to="/stats" className={linkClass} activeProps={{ className: `${linkClass} ${activeClass}` }}>
-            Stats
-          </Link>
-          <Link to="/settings" className={linkClass} activeProps={{ className: `${linkClass} ${activeClass}` }}>
-            Settings
-          </Link>
-        </nav>
+        <div className="flex items-center gap-3">
+          <nav className="flex items-center gap-1">
+            <Link to="/" className={linkClass} activeOptions={{ exact: true }} activeProps={{ className: `${linkClass} ${activeClass}` }}>
+              Timer
+            </Link>
+            <Link to="/stats" className={linkClass} activeProps={{ className: `${linkClass} ${activeClass}` }}>
+              Stats
+            </Link>
+            <Link to="/settings" className={linkClass} activeProps={{ className: `${linkClass} ${activeClass}` }}>
+              Settings
+            </Link>
+          </nav>
+          <FeedbackDialog />
+        </div>
       </div>
     </header>
   );
