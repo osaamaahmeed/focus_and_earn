@@ -45,6 +45,7 @@ function HomePage() {
   const [completedFocusCount, setCompletedFocusCount] = useState(0);
   const startRef = useRef<number | null>(null);
   const baseRef = useRef<number>(0);
+  const [loggedSecInCurrentPomo, setLoggedSecInCurrentPomo] = useState(0);
 
   const phaseTotalSec = useMemo(() => {
     const min =
@@ -81,42 +82,50 @@ function HomePage() {
   useEffect(() => {
     baseRef.current = 0;
     setElapsedSec(0);
+    setLoggedSecInCurrentPomo(0);
   }, [phase]);
 
   const finishPhase = useCallback(() => {
     if (phase === "focus") {
-      const duration = Math.round(phaseTotalSec);
+      const totalDuration = Math.round(phaseTotalSec);
+      const duration = Math.max(0, totalDuration - loggedSecInCurrentPomo);
       const rate = activeRate;
       const earned = computeEarned(duration, rate);
-      const session: Session = {
-        id: uid(),
-        taskId: activeTask?.id ?? null,
-        taskTitle: activeTask?.title ?? "No task",
-        startedAt: Date.now() - duration * 1000,
-        endedAt: Date.now(),
-        durationSec: duration,
-        rate,
-        earned,
-      };
-      setSessions([session, ...sessions]);
-      if (activeTask) {
-        setTasks(
-          tasks.map((t) =>
-            t.id === activeTask.id
-              ? {
-                  ...t,
-                  totalSec: t.totalSec + duration,
-                  totalEarned: t.totalEarned + earned,
-                  pomodoros: t.pomodoros + 1,
-                }
-              : t,
-          ),
+
+      if (duration > 0) {
+        const session: Session = {
+          id: uid(),
+          taskId: activeTask?.id ?? null,
+          taskTitle: activeTask?.title ?? "No task",
+          startedAt: Date.now() - duration * 1000,
+          endedAt: Date.now(),
+          durationSec: duration,
+          rate,
+          earned,
+        };
+        setSessions((prev) => [session, ...prev]);
+        if (activeTask) {
+          setTasks((prevTasks) =>
+            prevTasks.map((t) =>
+              t.id === activeTask.id
+                ? {
+                    ...t,
+                    totalSec: t.totalSec + duration,
+                    totalEarned: t.totalEarned + earned,
+                    pomodoros: Number((t.pomodoros + duration / phaseTotalSec).toFixed(2)),
+                  }
+                : t,
+            ),
+          );
+        }
+        toast.success(
+          `Pomodoro complete! ${formatDuration(duration)} • ${formatMoney(earned, settings.currency)}`,
+          { description: activeTask ? `Credited to "${activeTask.title}"` : "No task selected" },
         );
+      } else {
+        toast.success("Pomodoro complete!");
       }
-      toast.success(
-        `Pomodoro complete! ${formatDuration(duration)} • ${formatMoney(earned, settings.currency)}`,
-        { description: activeTask ? `Credited to "${activeTask.title}"` : "No task selected" },
-      );
+
       if (settings.soundOn) beep();
       const next = completedFocusCount + 1;
       setCompletedFocusCount(next);
@@ -128,8 +137,19 @@ function HomePage() {
     }
     baseRef.current = 0;
     setElapsedSec(0);
+    setLoggedSecInCurrentPomo(0);
     setRunning(false);
-  }, [phase, phaseTotalSec, activeRate, activeTask, sessions, tasks, settings, completedFocusCount, setSessions, setTasks]);
+  }, [
+    phase,
+    phaseTotalSec,
+    activeRate,
+    activeTask,
+    settings,
+    completedFocusCount,
+    loggedSecInCurrentPomo,
+    setSessions,
+    setTasks,
+  ]);
 
   useEffect(() => {
     if (elapsedSec >= phaseTotalSec && running) {
@@ -143,12 +163,57 @@ function HomePage() {
     setRunning(false);
     baseRef.current = 0;
     setElapsedSec(0);
+    setLoggedSecInCurrentPomo(0);
   };
   const skip = () => {
     setRunning(false);
     baseRef.current = 0;
     setElapsedSec(0);
+    setLoggedSecInCurrentPomo(0);
     setPhase(phase === "focus" ? "short" : "focus");
+  };
+
+  const handleSwitchTask = (newTaskId: string | null) => {
+    if (newTaskId === activeTaskId) return;
+
+    if (running && phase === "focus") {
+      const segmentDuration = Math.round(elapsedSec) - loggedSecInCurrentPomo;
+      if (segmentDuration > 0) {
+        const rate = activeRate;
+        const earned = computeEarned(segmentDuration, rate);
+        const session: Session = {
+          id: uid(),
+          taskId: activeTask?.id ?? null,
+          taskTitle: activeTask?.title ?? "No task",
+          startedAt: Date.now() - segmentDuration * 1000,
+          endedAt: Date.now(),
+          durationSec: segmentDuration,
+          rate,
+          earned,
+        };
+
+        setSessions((prev) => [session, ...prev]);
+        if (activeTask) {
+          setTasks((prevTasks) =>
+            prevTasks.map((t) =>
+              t.id === activeTask.id
+                ? {
+                    ...t,
+                    totalSec: t.totalSec + segmentDuration,
+                    totalEarned: t.totalEarned + earned,
+                    pomodoros: Number((t.pomodoros + segmentDuration / phaseTotalSec).toFixed(2)),
+                  }
+                : t,
+            ),
+          );
+        }
+        setLoggedSecInCurrentPomo((prev) => prev + segmentDuration);
+        toast.info(
+          `Logged ${formatDuration(segmentDuration)} to "${activeTask?.title ?? "No task"}"`,
+        );
+      }
+    }
+    setActiveTaskId(newTaskId);
   };
 
   // Task list handlers
@@ -175,12 +240,66 @@ function HomePage() {
     setNewRate("");
   };
 
-  const toggleDone = (id: string) =>
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  const removeTask = (id: string) => {
-    setTasks(tasks.filter((t) => t.id !== id));
-    if (activeTaskId === id) setActiveTaskId(null);
+  const toggleDone = (id: string) => {
+    const taskToToggle = tasks.find((t) => t.id === id);
+    if (!taskToToggle) return;
+
+    const isMarkingDone = !taskToToggle.done;
+
+    if (id === activeTaskId && isMarkingDone && running && phase === "focus") {
+      const segmentDuration = Math.round(elapsedSec) - loggedSecInCurrentPomo;
+      if (segmentDuration > 0) {
+        const rate = activeRate;
+        const earned = computeEarned(segmentDuration, rate);
+        const session: Session = {
+          id: uid(),
+          taskId: taskToToggle.id,
+          taskTitle: taskToToggle.title,
+          startedAt: Date.now() - segmentDuration * 1000,
+          endedAt: Date.now(),
+          durationSec: segmentDuration,
+          rate,
+          earned,
+        };
+
+        setSessions((prev) => [session, ...prev]);
+
+        const nextTask = tasks.find((t) => t.id !== id && !t.done);
+
+        setTasks((prevTasks) =>
+          prevTasks.map((t) =>
+            t.id === id
+              ? {
+                  ...t,
+                  done: true,
+                  totalSec: t.totalSec + segmentDuration,
+                  totalEarned: t.totalEarned + earned,
+                  pomodoros: Number((t.pomodoros + segmentDuration / phaseTotalSec).toFixed(2)),
+                }
+              : t,
+          ),
+        );
+        
+        setLoggedSecInCurrentPomo((prev) => prev + segmentDuration);
+        setActiveTaskId(nextTask ? nextTask.id : null);
+        toast.success(`Completed "${taskToToggle.title}"! Logged ${formatDuration(segmentDuration)}.`);
+      } else {
+        const nextTask = tasks.find((t) => t.id !== id && !t.done);
+        setTasks((prevTasks) => prevTasks.map((t) => (t.id === id ? { ...t, done: true } : t)));
+        setActiveTaskId(nextTask ? nextTask.id : null);
+      }
+    } else {
+      setTasks((prevTasks) => prevTasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    }
   };
+
+  const removeTask = (id: string) => {
+    setTasks((prevTasks) => prevTasks.filter((t) => t.id !== id));
+    if (activeTaskId === id) {
+      handleSwitchTask(null);
+    }
+  };
+
   const updateRate = (id: string, val: string) => {
     const n = val.trim() === "" ? null : Number(val);
     setTasks(
@@ -336,7 +455,7 @@ function HomePage() {
                     </Button>
                     <button
                       type="button"
-                      onClick={() => setActiveTaskId(t.id)}
+                      onClick={() => handleSwitchTask(t.id)}
                       className={`flex-1 text-left truncate ${t.done ? "line-through text-muted-foreground" : ""}`}
                     >
                       <div className="truncate">{t.title}</div>
