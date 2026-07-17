@@ -19,7 +19,7 @@ import { useTranslation } from "../lib/translations";
 // Paste it below to receive feedback from your users directly to your email inbox!
 // ============================================================================
 const WEB3FORMS_ACCESS_KEY = (import.meta.env.VITE_WEB3FORMS_KEY || "").trim();
-const GITHUB_REPO_URL = "https://github.com/osaamaahmeed/time-is-money-todo";
+const GITHUB_REPO_URL = "https://github.com/osaamaahmeed/focus_and_earn";
 
 export function FeedbackDialog() {
   const { t } = useTranslation();
