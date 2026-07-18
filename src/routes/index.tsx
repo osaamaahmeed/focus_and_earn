@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX, ExternalLink } from "lucide-react";
+import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX, ExternalLink, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,17 @@ import { Badge } from "@/components/ui/badge";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   DEFAULT_SETTINGS,
   KEYS,
@@ -130,6 +141,10 @@ function HomePage() {
   const baseRef = useRef<number>(0);
   const [loggedSecInCurrentPomo, setLoggedSecInCurrentPomo] = useState(0);
   const [pipWindow, setPipWindow] = useState<any>(null);
+  const [showChooseTaskPrompt, setShowChooseTaskPrompt] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [dialogTitle, setDialogTitle] = useState("");
+  const [dialogRate, setDialogRate] = useState("");
 
   const copyStylesToPip = (pipDoc: Document) => {
     // Copy stylesheets
@@ -321,8 +336,102 @@ function HomePage() {
     );
   }, [running, settings.youtubeNoiseOn, settings.youtubeOnlyWhenRunning, settings.youtubeVolume, sHy]);
 
-  const start = () => setRunning(true);
+  const start = () => {
+    if (!activeTaskId) {
+      setShowChooseTaskPrompt(true);
+      toast.error(t("pleaseSelectTaskFirst"));
+      return;
+    }
+    setRunning(true);
+  };
   const pause = () => setRunning(false);
+
+  const handleFinishActiveTask = () => {
+    if (!activeTask) return;
+
+    setRunning(false);
+
+    const segmentDuration = Math.round(elapsedSec) - loggedSecInCurrentPomo;
+    const rate = activeRate;
+    const earned = computeEarned(segmentDuration, rate);
+
+    if (segmentDuration > 0) {
+      const session: Session = {
+        id: uid(),
+        taskId: activeTask.id,
+        taskTitle: activeTask.title,
+        startedAt: Date.now() - segmentDuration * 1000,
+        endedAt: Date.now(),
+        durationSec: segmentDuration,
+        rate,
+        earned,
+      };
+
+      setSessions((prev) => [session, ...prev]);
+
+      setTasks((prevTasks) =>
+        prevTasks.map((t) =>
+          t.id === activeTask.id
+            ? {
+                ...t,
+                done: true,
+                totalSec: t.totalSec + segmentDuration,
+                totalEarned: t.totalEarned + earned,
+                pomodoros: Number((t.pomodoros + segmentDuration / phaseTotalSec).toFixed(2)),
+              }
+            : t,
+        ),
+      );
+
+      setLoggedSecInCurrentPomo((prev) => prev + segmentDuration);
+
+      toast.success(
+        t("toastCompletedTask", {
+          title: activeTask.title,
+          duration: formatDuration(segmentDuration, settings.lang),
+        }),
+      );
+    } else {
+      setTasks((prevTasks) =>
+        prevTasks.map((t) => (t.id === activeTask.id ? { ...t, done: true } : t)),
+      );
+      toast.success(
+        settings.lang === "ar"
+          ? `اكتملت المهمة "${activeTask.title}"`
+          : `Completed task "${activeTask.title}"`
+      );
+    }
+
+    setActiveTaskId(null);
+    setShowChooseTaskPrompt(true);
+  };
+
+  const handleAddAndSelect = () => {
+    const title = dialogTitle.trim();
+    if (!title) return;
+    const rate = dialogRate.trim() === "" ? null : Number(dialogRate);
+    const task: Task = {
+      id: uid(),
+      title,
+      hourlyRate: rate != null && !Number.isNaN(rate) ? rate : null,
+      done: false,
+      createdAt: Date.now(),
+      totalSec: 0,
+      totalEarned: 0,
+      pomodoros: 0,
+    };
+    setTasks([task, ...tasks]);
+    setActiveTaskId(task.id);
+    setDialogTitle("");
+    setDialogRate("");
+    setShowChooseTaskPrompt(false);
+    setRunning(true);
+    toast.success(
+      settings.lang === "ar"
+        ? `تم إنشاء المهمة "${title}" وتنشيطها`
+        : `Created and activated task "${title}"`
+    );
+  };
   const reset = () => {
     setRunning(false);
     baseRef.current = 0;
@@ -335,6 +444,17 @@ function HomePage() {
     setElapsedSec(0);
     setLoggedSecInCurrentPomo(0);
     setPhase(phase === "focus" ? "short" : "focus");
+  };
+  const handleConfirmCancel = () => {
+    reset();
+    setShowCancelConfirm(false);
+  };
+  const handleCancelClick = () => {
+    if (elapsedSec > 0) {
+      setShowCancelConfirm(true);
+    } else {
+      reset();
+    }
   };
 
   const handleSwitchTask = (newTaskId: string | null) => {
@@ -381,6 +501,9 @@ function HomePage() {
       }
     }
     setActiveTaskId(newTaskId);
+    if (newTaskId) {
+      setRunning(true);
+    }
   };
 
   // Task list handlers
@@ -552,22 +675,35 @@ function HomePage() {
           <div className="flex flex-wrap justify-center gap-2">
             {!running ? (
               <Button size="lg" onClick={start}>
-                <Play className="mx-2 h-4 w-4" /> {t("start")}
+                <Play className="mx-2 h-4 w-4" /> {elapsedSec > 0 ? t("resume") : t("start")}
               </Button>
             ) : (
               <Button size="lg" variant="secondary" onClick={pause}>
                 <Pause className="mx-2 h-4 w-4" /> {t("pause")}
               </Button>
             )}
-            <Button size="lg" variant="outline" onClick={reset}>
-              <RotateCcw className="mx-2 h-4 w-4" /> {t("reset")}
-            </Button>
+            {activeTask && running && (
+              <Button
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm"
+                onClick={handleFinishActiveTask}
+              >
+                <Check className="mx-2 h-4 w-4" /> {t("finishTask")}
+              </Button>
+            )}
             <Button size="lg" variant="outline" onClick={togglePip}>
               <ExternalLink className="mx-2 h-4 w-4" /> {pipWindow ? t("closeFloatingTimer") : t("openFloatingTimer")}
             </Button>
-            <Button size="lg" variant="ghost" onClick={skip}>
-              <SkipForward className="mx-2 h-4 w-4" /> {t("skip")}
-            </Button>
+            {(running || elapsedSec > 0) && (
+              <Button
+                size="lg"
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={handleCancelClick}
+              >
+                <X className="mx-2 h-4 w-4" /> {t("cancel")}
+              </Button>
+            )}
           </div>
 
           {pipWindow && createPortal(
@@ -747,6 +883,118 @@ function HomePage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showChooseTaskPrompt} onOpenChange={setShowChooseTaskPrompt}>
+        <DialogContent className="sm:max-w-[450px] w-full p-6 bg-background border border-border rounded-lg shadow-lg">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <Check className="h-5 w-5 text-green-600" />
+              <span>{t("chooseTaskTitle")}</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-start">
+              {t("chooseTaskDescription")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-3">
+            {/* List of active/undone tasks */}
+            <div className="space-y-2">
+              <span className="text-xs font-semibold text-muted-foreground text-start block">
+                {settings.lang === "ar" ? "المهام المتاحة" : "Available Tasks"}
+              </span>
+              {tasks.filter((t) => !t.done).length === 0 ? (
+                <div className="py-4 text-center text-xs text-muted-foreground border border-dashed rounded-md">
+                  {t("noActiveTasks")}
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                  {tasks
+                    .filter((t) => !t.done)
+                    .map((task) => (
+                      <button
+                        key={task.id}
+                        type="button"
+                        onClick={() => {
+                          handleSwitchTask(task.id);
+                          setShowChooseTaskPrompt(false);
+                        }}
+                        className="w-full text-start p-3 border border-border rounded-md hover:border-primary hover:bg-accent/40 transition-colors flex items-center justify-between gap-2"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate text-foreground text-sm text-start">
+                            {task.title}
+                          </div>
+                          <div className="text-xs text-muted-foreground text-start">
+                            {task.pomodoros} {settings.lang === "ar" ? "جلسات" : "pomodoros"} •{" "}
+                            {formatDuration(task.totalSec, settings.lang)}
+                          </div>
+                        </div>
+                        <span className="text-xs text-primary font-medium shrink-0 flex items-center gap-1">
+                          {t("selectTask")} &rarr;
+                        </span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            {/* Form to quickly add a new task */}
+            <div className="border-t border-border pt-4 space-y-3">
+              <span className="text-xs font-semibold text-muted-foreground text-start block">
+                {settings.lang === "ar" ? "أو إنشاء مهمة جديدة سريعة" : "Or Create a Quick New Task"}
+              </span>
+              <div className="flex flex-col gap-2">
+                <Input
+                  placeholder={t("taskPlaceholder")}
+                  value={dialogTitle}
+                  onChange={(e) => setDialogTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddAndSelect()}
+                  className="text-start h-9 text-sm"
+                />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <DollarSign
+                      className={`absolute ${
+                        settings.lang === "ar" ? "right-2" : "left-2"
+                      } top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground`}
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder={t("rateDefault", { rate: settings.defaultHourlyRate })}
+                      value={dialogRate}
+                      onChange={(e) => setDialogRate(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddAndSelect()}
+                      className={`${
+                        settings.lang === "ar" ? "pr-7" : "pl-7"
+                      } h-9 text-sm no-spinner text-start`}
+                    />
+                  </div>
+                  <Button size="sm" onClick={handleAddAndSelect} className="h-9">
+                    <Plus className="mx-1 h-3.5 w-3.5" /> {t("add")}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("cancelSessionConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription className="text-start">{t("cancelSessionConfirmDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowCancelConfirm(false)}>{t("noGoBack")}</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleConfirmCancel}>
+              {t("yesCancel")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
