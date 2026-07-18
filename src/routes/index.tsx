@@ -1,13 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign } from "lucide-react";
+import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import {
   DEFAULT_SETTINGS,
   KEYS,
@@ -31,9 +33,11 @@ function phaseLabel(p: Phase, t: (k: TranslationKey) => string) {
   return p === "focus" ? t("focus") : p === "short" ? t("shortBreak") : t("longBreak");
 }
 
+const FOCUS_NOISE_VIDEO_ID = "yLOM8R6lbzg";
+
 function HomePage() {
   const { t } = useTranslation();
-  const { value: settings, hydrated: sHy } = useLocalStorage<Settings>(
+  const { value: settings, setValue: setSettings, hydrated: sHy } = useLocalStorage<Settings>(
     KEYS.settings,
     DEFAULT_SETTINGS,
   );
@@ -178,6 +182,18 @@ function HomePage() {
       finishPhase();
     }
   }, [elapsedSec, phaseTotalSec, running, finishPhase]);
+
+  // Control global white noise player
+  useEffect(() => {
+    if (!sHy) return;
+    const shouldPlay = settings.youtubeNoiseOn && (!settings.youtubeOnlyWhenRunning || running);
+    const command = shouldPlay ? "playVideo" : "pauseVideo";
+    window.dispatchEvent(
+      new CustomEvent("control-white-noise", {
+        detail: { command, volume: settings.youtubeVolume },
+      })
+    );
+  }, [running, settings.youtubeNoiseOn, settings.youtubeOnlyWhenRunning, settings.youtubeVolume, sHy]);
 
   const start = () => setRunning(true);
   const pause = () => setRunning(false);
@@ -424,6 +440,47 @@ function HomePage() {
               <SkipForward className="mx-2 h-4 w-4" /> {t("skip")}
             </Button>
           </div>
+
+          <div className="border-t border-border pt-4 mt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+                {t("youtubeNoise")}:
+              </span>
+              <Switch
+                checked={settings.youtubeNoiseOn}
+                onCheckedChange={(val) =>
+                  setSettings((prev) => ({ ...prev, youtubeNoiseOn: val }))
+                }
+              />
+            </div>
+
+            {settings.youtubeNoiseOn && (
+              <div className="flex items-center gap-3 w-full sm:w-60">
+                {settings.youtubeVolume === 0 ? (
+                  <VolumeX className="h-4.5 w-4.5 text-muted-foreground shrink-0" />
+                ) : (
+                  <Volume2 className="h-4.5 w-4.5 text-muted-foreground shrink-0" />
+                )}
+                <div className="flex-1 flex items-center gap-2">
+                  <Slider
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={[settings.youtubeVolume]}
+                    onValueChange={(val) =>
+                      setSettings((prev) => ({ ...prev, youtubeVolume: val[0] }))
+                    }
+                    className="w-full"
+                  />
+                  <span className="text-xs font-mono text-muted-foreground w-8 text-end tabular-nums">
+                    {settings.youtubeVolume}%
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+
 
           <div className="text-center text-sm text-muted-foreground">
             {activeTask ? t("workingOn", { title: activeTask.title }) : t("selectTaskPrompt")}

@@ -98,6 +98,11 @@ export const translations = {
     skip: "Skip",
     elapsed: "ELAPSED",
     loading: "Loading...",
+    youtubeNoise: "White Noise",
+    youtubeNoiseDesc: "Play white noise.",
+    youtubeVolumeLabel: "White Noise Volume: {volume}%",
+    youtubeOnlyWhenRunning: "Play only when timer is running",
+    youtubeOnlyWhenRunningDesc: "If disabled, the white noise plays continuously as long as it is toggled on.",
   },
   ar: {
     appName: "ركّز واكسب",
@@ -195,6 +200,11 @@ export const translations = {
     skip: "تخطي",
     elapsed: "الوقت المنقضي",
     loading: "جاري التحميل...",
+    youtubeNoise: "الضوضاء البيضاء",
+    youtubeNoiseDesc: "تشغيل الضوضاء البيضاء.",
+    youtubeVolumeLabel: "مستوى صوت الضوضاء: {volume}%",
+    youtubeOnlyWhenRunning: "التشغيل فقط عند تشغيل المؤقت",
+    youtubeOnlyWhenRunningDesc: "إذا تم تعطيله، ستستمر الضوضاء البيضاء في التشغيل طالما تم تفعيلها.",
   },
 } as const;
 

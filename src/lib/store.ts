@@ -30,6 +30,9 @@ export type Settings = {
   soundOn: boolean;
   theme: "dark" | "light";
   lang: "en" | "ar";
+  youtubeNoiseOn: boolean;
+  youtubeVolume: number; // 0 to 100
+  youtubeOnlyWhenRunning: boolean;
 };
 
 const getSystemTheme = (): "dark" | "light" => {
@@ -49,6 +52,9 @@ export const DEFAULT_SETTINGS: Settings = {
   soundOn: true,
   theme: getSystemTheme(),
   lang: "en",
+  youtubeNoiseOn: false,
+  youtubeVolume: 50,
+  youtubeOnlyWhenRunning: true,
 };
 
 export type Feedback = {

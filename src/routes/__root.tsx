@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -143,6 +143,8 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const { value: settings, hydrated } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
+  const ytPlayerRef = useRef<HTMLIFrameElement>(null);
+  const FOCUS_NOISE_VIDEO_ID = "yLOM8R6lbzg";
 
   useEffect(() => {
     if (!hydrated) return;
@@ -160,6 +162,67 @@ function RootComponent() {
     htmlEl.dir = "ltr"; // Keep scrollbars static on the right to prevent page resizing shift
   }, [settings.theme, settings.lang, hydrated]);
 
+  // Listen to control-white-noise event from child routes
+  useEffect(() => {
+    const handleControl = (e: Event) => {
+      const customEvent = e as CustomEvent<{ command: string; volume: number }>;
+      const iframe = ytPlayerRef.current;
+      if (!iframe) return;
+      try {
+        if (customEvent.detail.command === "playVideo") {
+          iframe.contentWindow?.postMessage(
+            JSON.stringify({ event: "command", func: "unMute", args: "" }),
+            "*"
+          );
+        }
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: "command", func: customEvent.detail.command, args: "" }),
+          "*"
+        );
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: "command", func: "setVolume", args: [customEvent.detail.volume] }),
+          "*"
+        );
+      } catch (err) {
+        console.error("Failed to post message to global YouTube player", err);
+      }
+    };
+
+    window.addEventListener("control-white-noise", handleControl);
+    return () => window.removeEventListener("control-white-noise", handleControl);
+  }, []);
+
+  // Sync settings when loaded/modified directly
+  useEffect(() => {
+    if (!hydrated) return;
+    const iframe = ytPlayerRef.current;
+    if (!iframe) return;
+
+    const shouldPlay = settings.youtubeNoiseOn && !settings.youtubeOnlyWhenRunning;
+    const command = shouldPlay ? "playVideo" : "pauseVideo";
+
+    const timeoutId = setTimeout(() => {
+      try {
+        if (shouldPlay) {
+          iframe.contentWindow?.postMessage(
+            JSON.stringify({ event: "command", func: "unMute", args: "" }),
+            "*"
+          );
+        }
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: "command", func: command, args: "" }),
+          "*"
+        );
+        iframe.contentWindow?.postMessage(
+          JSON.stringify({ event: "command", func: "setVolume", args: [settings.youtubeVolume] }),
+          "*"
+        );
+      } catch {}
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [hydrated, settings.youtubeNoiseOn, settings.youtubeOnlyWhenRunning, settings.youtubeVolume]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-background text-foreground" dir="ltr">
@@ -172,6 +235,15 @@ function RootComponent() {
           <Outlet />
         </main>
       </div>
+      <iframe
+        ref={ytPlayerRef}
+        width="0"
+        height="0"
+        src={`https://www.youtube.com/embed/${FOCUS_NOISE_VIDEO_ID}?enablejsapi=1&controls=0&loop=1&playlist=${FOCUS_NOISE_VIDEO_ID}&autoplay=0&mute=0`}
+        title="White Noise Player"
+        className="hidden pointer-events-none absolute w-0 h-0"
+        allow="autoplay"
+      />
       <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );

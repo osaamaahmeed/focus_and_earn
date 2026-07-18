@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { DEFAULT_SETTINGS, KEYS, Settings } from "@/lib/store";
 import { useTranslation } from "@/lib/translations";
@@ -166,6 +167,41 @@ function SettingsPage() {
             <div className="text-xs sm:text-sm text-muted-foreground">{t("playChime")}</div>
           </div>
           <Switch checked={value.soundOn} onCheckedChange={(v) => update("soundOn", v)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("youtubeNoise")}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium text-sm sm:text-base">{t("youtubeOnlyWhenRunning")}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">{t("youtubeOnlyWhenRunningDesc")}</div>
+            </div>
+            <Switch
+              checked={value.youtubeOnlyWhenRunning}
+              onCheckedChange={(v) => update("youtubeOnlyWhenRunning", v)}
+            />
+          </div>
+
+          <div className="space-y-2 pt-4 border-t border-border">
+            <Label>{t("youtubeVolumeLabel", { volume: value.youtubeVolume })}</Label>
+            <div className="flex items-center gap-4">
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[value.youtubeVolume]}
+                onValueChange={(val) => update("youtubeVolume", val[0])}
+                className="flex-1"
+              />
+              <span className="text-sm font-mono text-muted-foreground w-12 text-end tabular-nums">
+                {value.youtubeVolume}%
+              </span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
