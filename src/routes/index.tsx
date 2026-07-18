@@ -2,7 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX, ExternalLink, X } from "lucide-react";
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  SkipForward,
+  Plus,
+  Trash2,
+  Check,
+  DollarSign,
+  Volume2,
+  VolumeX,
+  ExternalLink,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,7 +24,13 @@ import { Badge } from "@/components/ui/badge";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,7 +116,12 @@ const FloatingTimerView = ({
 
       {/* Control Buttons */}
       <div className="flex items-center justify-center gap-2">
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={reset}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground"
+          onClick={reset}
+        >
           <RotateCcw className="h-4 w-4" />
         </Button>
         <Button
@@ -108,7 +132,12 @@ const FloatingTimerView = ({
         >
           {running ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
         </Button>
-        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={skip}>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="h-8 w-8 text-muted-foreground"
+          onClick={skip}
+        >
           <SkipForward className="h-4 w-4" />
         </Button>
       </div>
@@ -118,10 +147,11 @@ const FloatingTimerView = ({
 
 function HomePage() {
   const { t } = useTranslation();
-  const { value: settings, setValue: setSettings, hydrated: sHy } = useLocalStorage<Settings>(
-    KEYS.settings,
-    DEFAULT_SETTINGS,
-  );
+  const {
+    value: settings,
+    setValue: setSettings,
+    hydrated: sHy,
+  } = useLocalStorage<Settings>(KEYS.settings, DEFAULT_SETTINGS);
   const {
     value: tasks,
     setValue: setTasks,
@@ -148,14 +178,14 @@ function HomePage() {
 
   const copyStylesToPip = (pipDoc: Document) => {
     // Copy stylesheets
-    [...document.querySelectorAll("style, link[rel='stylesheet']")]
-      .forEach((el) => {
-        pipDoc.head.appendChild(el.cloneNode(true));
-      });
-    
+    [...document.querySelectorAll("style, link[rel='stylesheet']")].forEach((el) => {
+      pipDoc.head.appendChild(el.cloneNode(true));
+    });
+
     // Set matching background color and text direction/font for tailwind
     pipDoc.documentElement.className = document.documentElement.className;
-    pipDoc.body.className = "bg-background text-foreground flex flex-col items-center justify-center h-screen overflow-hidden select-none p-4";
+    pipDoc.body.className =
+      "bg-background text-foreground flex flex-col items-center justify-center h-screen overflow-hidden select-none p-4";
     pipDoc.body.dir = settings.lang === "ar" ? "rtl" : "ltr";
   };
 
@@ -201,6 +231,19 @@ function HomePage() {
     };
   }, [pipWindow]);
 
+  // Unlock audio on any global click or touch
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      unlockAudio();
+    };
+    window.addEventListener("click", handleGlobalClick, { capture: true });
+    window.addEventListener("touchstart", handleGlobalClick, { capture: true });
+    return () => {
+      window.removeEventListener("click", handleGlobalClick, { capture: true });
+      window.removeEventListener("touchstart", handleGlobalClick, { capture: true });
+    };
+  }, []);
+
   const phaseTotalSec = useMemo(() => {
     const min =
       phase === "focus"
@@ -245,8 +288,7 @@ function HomePage() {
 
   const finishPhase = useCallback(() => {
     if (phase === "focus") {
-      const totalDuration = Math.round(phaseTotalSec);
-      const duration = Math.max(0, totalDuration - loggedSecInCurrentPomo);
+      const duration = Math.max(0, Math.round(elapsedSec) - loggedSecInCurrentPomo);
       const rate = activeRate;
       const earned = computeEarned(duration, rate);
 
@@ -316,6 +358,7 @@ function HomePage() {
     setSessions,
     setTasks,
     t,
+    elapsedSec,
   ]);
 
   useEffect(() => {
@@ -332,9 +375,15 @@ function HomePage() {
     window.dispatchEvent(
       new CustomEvent("control-white-noise", {
         detail: { command, volume: settings.youtubeVolume },
-      })
+      }),
     );
-  }, [running, settings.youtubeNoiseOn, settings.youtubeOnlyWhenRunning, settings.youtubeVolume, sHy]);
+  }, [
+    running,
+    settings.youtubeNoiseOn,
+    settings.youtubeOnlyWhenRunning,
+    settings.youtubeVolume,
+    sHy,
+  ]);
 
   const start = () => {
     if (!activeTaskId) {
@@ -398,7 +447,7 @@ function HomePage() {
       toast.success(
         settings.lang === "ar"
           ? `اكتملت المهمة "${activeTask.title}"`
-          : `Completed task "${activeTask.title}"`
+          : `Completed task "${activeTask.title}"`,
       );
     }
 
@@ -420,7 +469,7 @@ function HomePage() {
       totalEarned: 0,
       pomodoros: 0,
     };
-    setTasks([task, ...tasks]);
+    setTasks((prevTasks) => [task, ...prevTasks]);
     setActiveTaskId(task.id);
     setDialogTitle("");
     setDialogRate("");
@@ -429,7 +478,7 @@ function HomePage() {
     toast.success(
       settings.lang === "ar"
         ? `تم إنشاء المهمة "${title}" وتنشيطها`
-        : `Created and activated task "${title}"`
+        : `Created and activated task "${title}"`,
     );
   };
   const reset = () => {
@@ -524,7 +573,7 @@ function HomePage() {
       totalEarned: 0,
       pomodoros: 0,
     };
-    setTasks([task, ...tasks]);
+    setTasks((prevTasks) => [task, ...prevTasks]);
     if (!activeTaskId) setActiveTaskId(task.id);
     setNewTitle("");
     setNewRate("");
@@ -597,8 +646,8 @@ function HomePage() {
 
   const updateRate = (id: string, val: string) => {
     const n = val.trim() === "" ? null : Number(val);
-    setTasks(
-      tasks.map((t) =>
+    setTasks((prevTasks) =>
+      prevTasks.map((t) =>
         t.id === id ? { ...t, hourlyRate: n != null && !Number.isNaN(n) ? n : null } : t,
       ),
     );
@@ -692,7 +741,8 @@ function HomePage() {
               </Button>
             )}
             <Button size="lg" variant="outline" onClick={togglePip}>
-              <ExternalLink className="mx-2 h-4 w-4" /> {pipWindow ? t("closeFloatingTimer") : t("openFloatingTimer")}
+              <ExternalLink className="mx-2 h-4 w-4" />{" "}
+              {pipWindow ? t("closeFloatingTimer") : t("openFloatingTimer")}
             </Button>
             {(running || elapsedSec > 0) && (
               <Button
@@ -706,21 +756,22 @@ function HomePage() {
             )}
           </div>
 
-          {pipWindow && createPortal(
-            <FloatingTimerView
-              phase={phase}
-              running={running}
-              elapsedSec={elapsedSec}
-              phaseTotalSec={phaseTotalSec}
-              start={start}
-              pause={pause}
-              reset={reset}
-              skip={skip}
-              t={t}
-              lang={settings.lang}
-            />,
-            pipWindow.document.body
-          )}
+          {pipWindow &&
+            createPortal(
+              <FloatingTimerView
+                phase={phase}
+                running={running}
+                elapsedSec={elapsedSec}
+                phaseTotalSec={phaseTotalSec}
+                start={start}
+                pause={pause}
+                reset={reset}
+                skip={skip}
+                t={t}
+                lang={settings.lang}
+              />,
+              pipWindow.document.body,
+            )}
 
           <div className="border-t border-border pt-4 mt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -729,9 +780,7 @@ function HomePage() {
               </span>
               <Switch
                 checked={settings.youtubeNoiseOn}
-                onCheckedChange={(val) =>
-                  setSettings((prev) => ({ ...prev, youtubeNoiseOn: val }))
-                }
+                onCheckedChange={(val) => setSettings((prev) => ({ ...prev, youtubeNoiseOn: val }))}
               />
             </div>
 
@@ -760,8 +809,6 @@ function HomePage() {
               </div>
             )}
           </div>
-
-
 
           <div className="text-center text-sm text-muted-foreground">
             {activeTask ? t("workingOn", { title: activeTask.title }) : t("selectTaskPrompt")}
@@ -941,7 +988,9 @@ function HomePage() {
             {/* Form to quickly add a new task */}
             <div className="border-t border-border pt-4 space-y-3">
               <span className="text-xs font-semibold text-muted-foreground text-start block">
-                {settings.lang === "ar" ? "أو إنشاء مهمة جديدة سريعة" : "Or Create a Quick New Task"}
+                {settings.lang === "ar"
+                  ? "أو إنشاء مهمة جديدة سريعة"
+                  : "Or Create a Quick New Task"}
               </span>
               <div className="flex flex-col gap-2">
                 <Input
@@ -978,18 +1027,25 @@ function HomePage() {
               </div>
             </div>
           </div>
-          </DialogContent>
+        </DialogContent>
       </Dialog>
 
       <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
         <AlertDialogContent className="sm:max-w-[425px]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("cancelSessionConfirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription className="text-start">{t("cancelSessionConfirmDescription")}</AlertDialogDescription>
+            <AlertDialogDescription className="text-start">
+              {t("cancelSessionConfirmDescription")}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowCancelConfirm(false)}>{t("noGoBack")}</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={handleConfirmCancel}>
+            <AlertDialogCancel onClick={() => setShowCancelConfirm(false)}>
+              {t("noGoBack")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmCancel}
+            >
               {t("yesCancel")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -999,8 +1055,11 @@ function HomePage() {
   );
 }
 
-function beep() {
-  try {
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext() {
+  if (typeof window === "undefined") return null;
+  if (!sharedAudioCtx) {
     const AC =
       (
         window as unknown as {
@@ -1009,18 +1068,60 @@ function beep() {
         }
       ).AudioContext ||
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.frequency.value = 880;
-    o.connect(g);
-    g.connect(ctx.destination);
-    g.gain.setValueAtTime(0.001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    o.start();
-    o.stop(ctx.currentTime + 0.65);
+    if (AC) {
+      sharedAudioCtx = new AC();
+    }
+  }
+  return sharedAudioCtx;
+}
+
+export function unlockAudio() {
+  try {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function beep() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    if (ctx.state === "suspended") {
+      ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+
+    const playNote = (freq: number, startTime: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gainNode.gain.setValueAtTime(0.001, startTime);
+      // Fast attack
+      gainNode.gain.exponentialRampToValueAtTime(0.8, startTime + 0.05);
+      // Decay
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration - 0.05);
+
+      osc.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+
+    // Play a premium digital chime chord arpeggio (C5, E5, G5, C6) that is loud and clean
+    playNote(523.25, now, 0.6); // C5
+    playNote(659.25, now + 0.08, 0.6); // E5
+    playNote(783.99, now + 0.16, 0.7); // G5
+    playNote(1046.5, now + 0.24, 0.8); // C6
   } catch {
     /* ignore */
   }
