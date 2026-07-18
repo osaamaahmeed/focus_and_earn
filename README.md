@@ -11,6 +11,8 @@ Most productivity apps tell you _how much time_ you spent working. Focus & Earn 
 - **Pomodoro Timer**: Work in focused intervals (default 25 minutes) with short and long breaks.
 - **Task List**: Manage your tasks in one place. Easily mark them as active, complete, or delete them.
 - **Hourly Rates & Live Tracker**: Set a custom hourly rate for each task. The timer shows your live earnings ticking up as you focus.
+- **Persistent White Noise**: Play focus-boosting white noise directly inside the application. Adjust volume and choose whether it plays continuously or only when the active timer is running. Navigation between pages is completely seamless and does not interrupt the audio.
+- **Floating Desktop Timer (Picture-in-Picture)**: Pop the timer out into a resizable, always-on-top floating window on your desktop. Control the session (Play/Pause, Skip, Reset) directly from the floating window while working in other apps (like code editors or spreadsheets).
 - **Detailed Analytics & Stats**:
   - Review focus hours and total earnings for Today, the Last 7 Days, or All Time.
   - Compare tasks with breakdown tables.

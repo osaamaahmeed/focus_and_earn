@@ -103,6 +103,9 @@ export const translations = {
     youtubeVolumeLabel: "White Noise Volume: {volume}%",
     youtubeOnlyWhenRunning: "Play only when timer is running",
     youtubeOnlyWhenRunningDesc: "If disabled, the white noise plays continuously as long as it is toggled on.",
+    pipNotSupported: "Floating window is not supported in your browser. Try Chrome or Edge.",
+    openFloatingTimer: "Open Floating Timer",
+    closeFloatingTimer: "Close Floating Timer",
   },
   ar: {
     appName: "ركّز واكسب",
@@ -205,6 +208,9 @@ export const translations = {
     youtubeVolumeLabel: "مستوى صوت الضوضاء: {volume}%",
     youtubeOnlyWhenRunning: "التشغيل فقط عند تشغيل المؤقت",
     youtubeOnlyWhenRunningDesc: "إذا تم تعطيله، ستستمر الضوضاء البيضاء في التشغيل طالما تم تفعيلها.",
+    pipNotSupported: "النافذة العائمة غير مدعومة في متصفحك. جرب Chrome أو Edge.",
+    openFloatingTimer: "فتح المؤقت العائم",
+    closeFloatingTimer: "إغلاق المؤقت العائم",
   },
 } as const;
 

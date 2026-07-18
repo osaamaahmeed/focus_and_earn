@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, RotateCcw, SkipForward, Plus, Trash2, Check, DollarSign, Volume2, VolumeX, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,75 @@ function phaseLabel(p: Phase, t: (k: TranslationKey) => string) {
 
 const FOCUS_NOISE_VIDEO_ID = "yLOM8R6lbzg";
 
+const FloatingTimerView = ({
+  phase,
+  running,
+  elapsedSec,
+  phaseTotalSec,
+  start,
+  pause,
+  reset,
+  skip,
+  t,
+  lang,
+}: {
+  phase: Phase;
+  running: boolean;
+  elapsedSec: number;
+  phaseTotalSec: number;
+  start: () => void;
+  pause: () => void;
+  reset: () => void;
+  skip: () => void;
+  t: (k: TranslationKey) => string;
+  lang: string;
+}) => {
+  const percentage = (elapsedSec / phaseTotalSec) * 100;
+  const remainingSec = Math.max(0, phaseTotalSec - elapsedSec);
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full h-full text-center space-y-3 font-sans">
+      {/* Title / Phase badge */}
+      <Badge variant={phase === "focus" ? "default" : "secondary"} className="text-xs px-2 py-0.5">
+        {phase === "focus" ? t("focus") : phase === "short" ? t("shortBreak") : t("longBreak")}
+      </Badge>
+
+      {/* Large countdown */}
+      <div className="text-3xl sm:text-4xl font-bold font-mono tracking-wider text-foreground tabular-nums select-all">
+        {formatDuration(remainingSec)}
+      </div>
+
+      {/* Minimal progress line */}
+      <div className="w-full max-w-[200px] h-1.5 bg-secondary rounded-full overflow-hidden">
+        <div
+          className={`h-full transition-all duration-300 ${
+            phase === "focus" ? "bg-primary" : "bg-green-500"
+          }`}
+          style={{ width: `${Math.min(100, percentage)}%` }}
+        />
+      </div>
+
+      {/* Control Buttons */}
+      <div className="flex items-center justify-center gap-2">
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={reset}>
+          <RotateCcw className="h-4 w-4" />
+        </Button>
+        <Button
+          size="icon"
+          variant="outline"
+          className="h-10 w-10 border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+          onClick={running ? pause : start}
+        >
+          {running ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 fill-current" />}
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" onClick={skip}>
+          <SkipForward className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 function HomePage() {
   const { t } = useTranslation();
   const { value: settings, setValue: setSettings, hydrated: sHy } = useLocalStorage<Settings>(
@@ -59,6 +129,62 @@ function HomePage() {
   const startRef = useRef<number | null>(null);
   const baseRef = useRef<number>(0);
   const [loggedSecInCurrentPomo, setLoggedSecInCurrentPomo] = useState(0);
+  const [pipWindow, setPipWindow] = useState<any>(null);
+
+  const copyStylesToPip = (pipDoc: Document) => {
+    // Copy stylesheets
+    [...document.querySelectorAll("style, link[rel='stylesheet']")]
+      .forEach((el) => {
+        pipDoc.head.appendChild(el.cloneNode(true));
+      });
+    
+    // Set matching background color and text direction/font for tailwind
+    pipDoc.documentElement.className = document.documentElement.className;
+    pipDoc.body.className = "bg-background text-foreground flex flex-col items-center justify-center h-screen overflow-hidden select-none p-4";
+    pipDoc.body.dir = settings.lang === "ar" ? "rtl" : "ltr";
+  };
+
+  const togglePip = async () => {
+    if (pipWindow) {
+      pipWindow.close();
+      setPipWindow(null);
+      return;
+    }
+
+    if (!("documentPictureInPicture" in window)) {
+      toast.error(t("pipNotSupported"));
+      return;
+    }
+
+    try {
+      // @ts-ignore
+      const pip = await window.documentPictureInPicture.requestWindow({
+        width: 280,
+        height: 180,
+      });
+
+      copyStylesToPip(pip.document);
+
+      // Listen for when the user closes the window manually
+      pip.addEventListener("pagehide", () => {
+        setPipWindow(null);
+      });
+
+      setPipWindow(pip);
+    } catch (err) {
+      console.error("Failed to open Picture-in-Picture window:", err);
+      toast.error("Failed to open floating window.");
+    }
+  };
+
+  // Close pip window when this component unmounts
+  useEffect(() => {
+    return () => {
+      if (pipWindow) {
+        pipWindow.close();
+      }
+    };
+  }, [pipWindow]);
 
   const phaseTotalSec = useMemo(() => {
     const min =
@@ -436,10 +562,29 @@ function HomePage() {
             <Button size="lg" variant="outline" onClick={reset}>
               <RotateCcw className="mx-2 h-4 w-4" /> {t("reset")}
             </Button>
+            <Button size="lg" variant="outline" onClick={togglePip}>
+              <ExternalLink className="mx-2 h-4 w-4" /> {pipWindow ? t("closeFloatingTimer") : t("openFloatingTimer")}
+            </Button>
             <Button size="lg" variant="ghost" onClick={skip}>
               <SkipForward className="mx-2 h-4 w-4" /> {t("skip")}
             </Button>
           </div>
+
+          {pipWindow && createPortal(
+            <FloatingTimerView
+              phase={phase}
+              running={running}
+              elapsedSec={elapsedSec}
+              phaseTotalSec={phaseTotalSec}
+              start={start}
+              pause={pause}
+              reset={reset}
+              skip={skip}
+              t={t}
+              lang={settings.lang}
+            />,
+            pipWindow.document.body
+          )}
 
           <div className="border-t border-border pt-4 mt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 w-full sm:w-auto">
