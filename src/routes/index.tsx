@@ -15,6 +15,7 @@ import {
   VolumeX,
   ExternalLink,
   X,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -558,6 +559,28 @@ function HomePage() {
   // Task list handlers
   const [newTitle, setNewTitle] = useState("");
   const [newRate, setNewRate] = useState<string>("");
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+
+  const startEditingTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditingTitle(task.title);
+  };
+
+  const cancelEditingTask = () => {
+    setEditingTaskId(null);
+    setEditingTitle("");
+  };
+
+  const saveEditingTask = (id: string) => {
+    const trimmed = editingTitle.trim();
+    if (!trimmed) return;
+    setTasks((prevTasks) =>
+      prevTasks.map((t) => (t.id === id ? { ...t, title: trimmed } : t)),
+    );
+    setEditingTaskId(null);
+    setEditingTitle("");
+  };
 
   const addTask = () => {
     const title = newTitle.trim();
@@ -855,41 +878,88 @@ function HomePage() {
             <div className="py-8 text-center text-sm text-muted-foreground">{t("noTasks")}</div>
           ) : (
             <ul className="space-y-2">
-              {tasks.map((t) => {
-                const isActive = t.id === activeTaskId;
-                const rate = t.hourlyRate ?? settings.defaultHourlyRate;
+              {tasks.map((taskItem) => {
+                const isActive = taskItem.id === activeTaskId;
+                const rate = taskItem.hourlyRate ?? settings.defaultHourlyRate;
                 return (
                   <li
-                    key={t.id}
+                    key={taskItem.id}
                     className={`flex items-center gap-3 rounded-md border p-3 transition-colors ${
                       isActive ? "border-primary bg-accent/40" : "border-border"
                     }`}
                   >
                     <Button
-                      variant={t.done ? "default" : "outline"}
+                      variant={taskItem.done ? "default" : "outline"}
                       size="icon"
                       className="h-7 w-7 shrink-0"
-                      onClick={() => toggleDone(t.id)}
+                      onClick={() => toggleDone(taskItem.id)}
                       aria-label="Toggle done"
                     >
-                      {t.done && <Check className="h-4 w-4" />}
+                      {taskItem.done && <Check className="h-4 w-4" />}
                     </Button>
-                    <button
-                      type="button"
-                      onClick={() => handleSwitchTask(t.id)}
-                      className={`flex-1 text-start truncate ${
-                        t.done ? "line-through text-muted-foreground" : ""
-                      }`}
-                    >
-                      <div className="truncate text-start">{t.title}</div>
-                      <div className="text-xs text-muted-foreground text-start">
-                        {t.pomodoros} {settings.lang === "ar" ? "جلسات" : "pomodoros"} •{" "}
-                        {formatDuration(t.totalSec, settings.lang)} •{" "}
-                        {formatMoney(t.totalEarned, settings.currency, settings.lang)}
+                    {editingTaskId === taskItem.id ? (
+                      <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                        <Input
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveEditingTask(taskItem.id);
+                            if (e.key === "Escape") cancelEditingTask();
+                          }}
+                          className="h-8 text-sm flex-1 text-start"
+                          autoFocus
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-green-600 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-950"
+                          onClick={() => saveEditingTask(taskItem.id)}
+                          aria-label={t("save")}
+                          title={t("save")}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0 text-muted-foreground"
+                          onClick={cancelEditingTask}
+                          aria-label={t("cancel")}
+                          title={t("cancel")}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSwitchTask(taskItem.id)}
+                        className={`flex-1 text-start truncate ${
+                          taskItem.done ? "line-through text-muted-foreground" : ""
+                        }`}
+                      >
+                        <div className="truncate text-start">{taskItem.title}</div>
+                        <div className="text-xs text-muted-foreground text-start">
+                          {taskItem.pomodoros} {settings.lang === "ar" ? "جلسات" : "pomodoros"} •{" "}
+                          {formatDuration(taskItem.totalSec, settings.lang)} •{" "}
+                          {formatMoney(taskItem.totalEarned, settings.currency, settings.lang)}
+                        </div>
+                      </button>
+                    )}
                     {isActive && (
                       <Badge variant="secondary">{settings.lang === "ar" ? "نشط" : "Active"}</Badge>
+                    )}
+                    {editingTaskId !== taskItem.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => startEditingTask(taskItem)}
+                        aria-label={t("editTaskTitle")}
+                        title={t("editTaskTitle")}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     )}
                     <div className="relative w-28">
                       <DollarSign
@@ -901,9 +971,9 @@ function HomePage() {
                         type="number"
                         min="0"
                         step="0.01"
-                        value={t.hourlyRate ?? ""}
+                        value={taskItem.hourlyRate ?? ""}
                         placeholder={String(settings.defaultHourlyRate)}
-                        onChange={(e) => updateRate(t.id, e.target.value)}
+                        onChange={(e) => updateRate(taskItem.id, e.target.value)}
                         className={`${
                           settings.lang === "ar" ? "pr-6" : "pl-6"
                         } h-8 text-sm no-spinner text-start`}
@@ -918,7 +988,7 @@ function HomePage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 shrink-0"
-                      onClick={() => removeTask(t.id)}
+                      onClick={() => removeTask(taskItem.id)}
                       aria-label="Delete task"
                     >
                       <Trash2 className="h-4 w-4" />
