@@ -119,6 +119,8 @@ export const translations = {
     cancelSessionConfirmDescription: "Are you sure you want to cancel the current session? All accumulated time and earnings in this session will be lost.",
     yesCancel: "Yes, Cancel",
     noGoBack: "No, Go Back",
+    openTimer: "Open Timer",
+    openTimerDuration: "Duration (minutes)",
   },
   ar: {
     appName: "ركّز واكسب",
@@ -237,6 +239,8 @@ export const translations = {
     cancelSessionConfirmDescription: "هل أنت متأكد من إلغاء الجلسة الحالية؟ سيتم فقدان كل الوقت والعملات المتراكمة في هذه الجلسة.",
     yesCancel: "نعم، إلغاء",
     noGoBack: "لا، تراجع",
+    openTimer: "مؤقت مفتوح",
+    openTimerDuration: "المدة (بالدقائق)",
   },
 } as const;
 

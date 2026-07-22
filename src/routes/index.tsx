@@ -59,9 +59,10 @@ export const Route = createFileRoute("/")({
   component: HomePage,
 });
 
-type Phase = "focus" | "short" | "long";
+type Phase = "focus" | "short" | "long" | "open";
 
 function phaseLabel(p: Phase, t: (k: TranslationKey) => string) {
+  if (p === "open") return t("openTimer");
   return p === "focus" ? t("focus") : p === "short" ? t("shortBreak") : t("longBreak");
 }
 
@@ -96,8 +97,11 @@ const FloatingTimerView = ({
   return (
     <div className="flex flex-col items-center justify-center w-full h-full text-center space-y-3 font-sans">
       {/* Title / Phase badge */}
-      <Badge variant={phase === "focus" ? "default" : "secondary"} className="text-xs px-2 py-0.5">
-        {phase === "focus" ? t("focus") : phase === "short" ? t("shortBreak") : t("longBreak")}
+      <Badge
+        variant={phase === "focus" || phase === "open" ? "default" : "secondary"}
+        className="text-xs px-2 py-0.5"
+      >
+        {phaseLabel(phase, t)}
       </Badge>
 
       {/* Large countdown */}
@@ -109,7 +113,7 @@ const FloatingTimerView = ({
       <div className="w-full max-w-[200px] h-1.5 bg-secondary rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ${
-            phase === "focus" ? "bg-primary" : "bg-green-500"
+            phase === "focus" || phase === "open" ? "bg-primary" : "bg-green-500"
           }`}
           style={{ width: `${Math.min(100, percentage)}%` }}
         />
@@ -165,13 +169,14 @@ function HomePage() {
   );
 
   const [phase, setPhase] = useState<Phase>("focus");
+  const [openTimerDurationMin, setOpenTimerDurationMin] = useState<number>(25);
   const [running, setRunning] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [completedFocusCount, setCompletedFocusCount] = useState(0);
   const startRef = useRef<number | null>(null);
   const baseRef = useRef<number>(0);
   const [loggedSecInCurrentPomo, setLoggedSecInCurrentPomo] = useState(0);
-  const [pipWindow, setPipWindow] = useState<any>(null);
+  const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [showChooseTaskPrompt, setShowChooseTaskPrompt] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [dialogTitle, setDialogTitle] = useState("");
@@ -203,7 +208,7 @@ function HomePage() {
     }
 
     try {
-      // @ts-ignore
+      // @ts-expect-error - Document Picture-in-Picture API is not standard in TypeScript window definitions
       const pip = await window.documentPictureInPicture.requestWindow({
         width: 280,
         height: 180,
@@ -246,6 +251,9 @@ function HomePage() {
   }, []);
 
   const phaseTotalSec = useMemo(() => {
+    if (phase === "open") {
+      return Math.max(1, Math.round(openTimerDurationMin * 60));
+    }
     const min =
       phase === "focus"
         ? settings.focusMin
@@ -253,14 +261,17 @@ function HomePage() {
           ? settings.shortBreakMin
           : settings.longBreakMin;
     return Math.max(1, Math.round(min * 60));
-  }, [phase, settings]);
+  }, [phase, settings, openTimerDurationMin]);
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) || null;
   const activeRate =
     activeTask?.hourlyRate != null ? activeTask.hourlyRate : settings.defaultHourlyRate;
 
   const remainingSec = Math.max(0, phaseTotalSec - elapsedSec);
-  const liveEarned = phase === "focus" ? computeEarned(elapsedSec, activeRate) : 0;
+  const liveEarned =
+    phase === "focus" || (phase === "open" && activeTaskId)
+      ? computeEarned(elapsedSec, activeRate)
+      : 0;
 
   // Timer tick
   useEffect(() => {
@@ -288,12 +299,14 @@ function HomePage() {
   }, [phase]);
 
   const finishPhase = useCallback(() => {
-    if (phase === "focus") {
+    if (phase === "focus" || phase === "open") {
       const duration = Math.max(0, Math.round(elapsedSec) - loggedSecInCurrentPomo);
-      const rate = activeRate;
+      const rate = phase === "focus" || (phase === "open" && activeTaskId) ? activeRate : 0;
       const earned = computeEarned(duration, rate);
 
-      if (duration > 0) {
+      const shouldLogSession = duration > 0 && (phase !== "open" || activeTaskId !== null);
+
+      if (shouldLogSession) {
         const session: Session = {
           id: uid(),
           taskId: activeTask?.id ?? null,
@@ -320,7 +333,7 @@ function HomePage() {
           );
         }
         toast.success(
-          `${t("toastPomodoroComplete")} ${formatDuration(duration, settings.lang)} • ${formatMoney(earned, settings.currency, settings.lang)}`,
+          `${phase === "open" ? t("openTimer") : t("toastPomodoroComplete")} ${formatDuration(duration, settings.lang)} • ${formatMoney(earned, settings.currency, settings.lang)}`,
           {
             description: activeTask
               ? t("toastCreditedTo", { title: activeTask.title })
@@ -328,13 +341,18 @@ function HomePage() {
           },
         );
       } else {
-        toast.success(t("toastPomodoroComplete"));
+        toast.success(phase === "open" ? t("openTimer") : t("toastPomodoroComplete"));
       }
 
       if (settings.soundOn) beep();
-      const next = completedFocusCount + 1;
-      setCompletedFocusCount(next);
-      setPhase(next % settings.longBreakEvery === 0 ? "long" : "short");
+
+      if (phase === "open") {
+        setPhase("focus");
+      } else {
+        const next = completedFocusCount + 1;
+        setCompletedFocusCount(next);
+        setPhase(next % settings.longBreakEvery === 0 ? "long" : "short");
+      }
     } else {
       toast.info(
         `${phaseLabel(phase, t)} ${
@@ -353,6 +371,7 @@ function HomePage() {
     phaseTotalSec,
     activeRate,
     activeTask,
+    activeTaskId,
     settings,
     completedFocusCount,
     loggedSecInCurrentPomo,
@@ -387,6 +406,10 @@ function HomePage() {
   ]);
 
   const start = () => {
+    if (phase === "open") {
+      setRunning(true);
+      return;
+    }
     if (!activeTaskId) {
       setShowChooseTaskPrompt(true);
       toast.error(t("pleaseSelectTaskFirst"));
@@ -493,7 +516,11 @@ function HomePage() {
     baseRef.current = 0;
     setElapsedSec(0);
     setLoggedSecInCurrentPomo(0);
-    setPhase(phase === "focus" ? "short" : "focus");
+    if (phase === "open") {
+      setPhase("focus");
+    } else {
+      setPhase(phase === "focus" ? "short" : "focus");
+    }
   };
   const handleConfirmCancel = () => {
     reset();
@@ -510,7 +537,7 @@ function HomePage() {
   const handleSwitchTask = (newTaskId: string | null) => {
     if (newTaskId === activeTaskId) return;
 
-    if (running && phase === "focus") {
+    if (running && (phase === "focus" || phase === "open")) {
       const segmentDuration = Math.round(elapsedSec) - loggedSecInCurrentPomo;
       if (segmentDuration > 0) {
         const rate = activeRate;
@@ -608,7 +635,12 @@ function HomePage() {
 
     const isMarkingDone = !taskToToggle.done;
 
-    if (id === activeTaskId && isMarkingDone && running && phase === "focus") {
+    if (
+      id === activeTaskId &&
+      isMarkingDone &&
+      running &&
+      (phase === "focus" || phase === "open")
+    ) {
       const segmentDuration = Math.round(elapsedSec) - loggedSecInCurrentPomo;
       if (segmentDuration > 0) {
         const rate = activeRate;
@@ -697,7 +729,7 @@ function HomePage() {
               {phaseLabel(phase, t)}
             </CardTitle>
             <div className="flex gap-2">
-              {(["focus", "short", "long"] as Phase[]).map((p) => (
+              {(["focus", "short", "long", "open"] as Phase[]).map((p) => (
                 <Button
                   key={p}
                   variant={phase === p ? "default" : "outline"}
@@ -722,6 +754,29 @@ function HomePage() {
               <Progress value={progress} />
             </div>
           </div>
+
+          {phase === "open" && (
+            <div className="space-y-2 border border-border rounded-md p-4 bg-muted/20">
+              <div className="flex justify-between items-center text-sm font-medium">
+                <span className="text-muted-foreground">{t("openTimerDuration")}</span>
+                <span className="font-mono text-foreground font-semibold">
+                  {openTimerDurationMin} {settings.lang === "ar" ? "دقيقة" : "min"}
+                </span>
+              </div>
+              <Slider
+                min={10}
+                max={180}
+                step={5}
+                value={[openTimerDurationMin]}
+                onValueChange={(val) => {
+                  const clamped = Math.min(180, Math.max(10, val[0]));
+                  setOpenTimerDurationMin(clamped);
+                }}
+                disabled={running}
+                className="w-full"
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4 text-center">
             <div className="rounded-md border border-border p-3">
